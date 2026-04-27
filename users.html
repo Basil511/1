@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>المستخدمون — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>👥 المستخدمون</h1><p>إدارة حسابات الدخول</p></div>
+    <button class="btn btn-success" onclick="openModal()">➕ إضافة مستخدم</button>
+  </div>
+  <div class="page-body">
+    <div class="glass glass-sm" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th><th>آخر دخول</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+        <tbody id="users-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="user-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card">
+    <div class="modal-title" id="modal-title">➕ إضافة مستخدم</div>
+    <div class="form-grid mb-16">
+      <div class="field" style="grid-column:span 2"><label>الاسم الكامل</label><input class="g-input" id="u-name" placeholder="مثال: محمد العمري"/></div>
+      <div class="field"><label>اسم المستخدم</label><input class="g-input" id="u-user" placeholder="للدخول"/></div>
+      <div class="field"><label>كلمة المرور</label><input class="g-input" id="u-pass" type="password" placeholder="كلمة المرور"/></div>
+      <div class="field" style="grid-column:span 2"><label>الصلاحية</label>
+        <select class="g-input g-select" id="u-role">
+          <option value="admin">مدير — صلاحيات كاملة</option>
+          <option value="manager">مشرف — إضافة وصرف</option>
+          <option value="viewer">مستعرض — عرض فقط</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveUser()">حفظ ✓</button>
+      <button class="btn btn-primary" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('users');
+var session = DB.requireAuth('admin');
+var editId = null;
+
+function openModal(u) {
+  editId = u ? u.id : null;
+  document.getElementById('modal-title').textContent = u ? '✏️ تعديل المستخدم' : '➕ إضافة مستخدم';
+  document.getElementById('u-name').value = u ? u.name     : '';
+  document.getElementById('u-user').value = u ? u.username : '';
+  document.getElementById('u-pass').value = '';
+  document.getElementById('u-role').value = u ? u.role : 'manager';
+  document.getElementById('user-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('u-name').focus();},200);
+}
+function closeModal(){document.getElementById('user-modal').classList.remove('on');}
+
+function saveUser() {
+  var data = {name:document.getElementById('u-name').value.trim(),username:document.getElementById('u-user').value.trim(),role:document.getElementById('u-role').value,active:true};
+  var pass = document.getElementById('u-pass').value;
+  if (!data.name||!data.username){tst('أدخل الاسم واسم المستخدم','r');return;}
+  if (editId) {
+    if (pass) data.password = pass;
+    DB.updateUser(editId,data); tst('تم التعديل ✓','g');
+  } else {
+    if (!pass){tst('أدخل كلمة المرور','r');return;}
+    data.password = pass; DB.addUser(data); tst('تمت الإضافة ✓','g');
+  }
+  closeModal(); render();
+}
+
+function toggleActive(id, cur) {
+  DB.updateUser(id,{active:!cur}); render();
+  tst(cur?'تم تعطيل الحساب':'تم تفعيل الحساب', cur?'r':'g');
+}
+
+function render() {
+  var users = DB.getUsers();
+  document.getElementById('users-body').innerHTML = users.map(function(u){
+    var roleBadge = u.role==='admin'?'<span class="badge badge-admin">مدير</span>':u.role==='manager'?'<span class="badge badge-manager">مشرف</span>':'<span class="badge badge-viewer">مستعرض</span>';
+    var activeBadge = u.active!==false?'<span class="badge badge-in">فعّال</span>':'<span class="badge badge-out">معطّل</span>';
+    var lastLogin = u.lastLogin ? fmtDate(u.lastLogin) : 'لم يدخل بعد';
+    return '<tr>'+
+      '<td><strong>'+u.name+'</strong></td>'+
+      '<td class="td-bc">'+u.username+'</td>'+
+      '<td>'+roleBadge+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+lastLogin+'</td>'+
+      '<td>'+activeBadge+'</td>'+
+      '<td><div class="flex gap-8">'+
+        (u.id!==session.id?'<button class="btn btn-primary btn-sm" onclick=\'openModal('+JSON.stringify(u)+')\'>تعديل</button>':'<span style="font-size:11px;color:var(--tx3)">حسابك</span>')+
+        (u.id!==session.id?'<button class="btn '+(u.active!==false?'btn-warn':'btn-success')+' btn-sm" onclick="toggleActive('+u.id+','+(u.active!==false)+')">'+(u.active!==false?'تعطيل':'تفعيل')+'</button>':'')+
+      '</div></td></tr>';
+  }).join('');
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>سجل النشاط — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>📋 سجل النشاط</h1><p>جميع الإجراءات المسجلة</p></div>
+    <button class="btn btn-primary btn-sm" onclick="render()">تحديث</button>
+  </div>
+  <div class="page-body">
+    <div class="glass glass-sm" style="padding:14px;margin-bottom:16px">
+      <div class="flex gap-12" style="flex-wrap:wrap;align-items:center">
+        <div class="search-wrap" style="flex:1;min-width:200px"><span class="search-icon">🔍</span><input class="g-input" style="padding:9px 12px 9px 36px;font-size:13px" placeholder="بحث في السجل..." oninput="filterLog(this.value)"/></div>
+        <select class="g-input g-select" style="width:160px;padding:9px 12px" onchange="filterType(this.value)">
+          <option value="all">جميع الأنواع</option>
+          <option value="entry">حركات المخزون</option>
+          <option value="login">تسجيل الدخول</option>
+          <option value="edit">التعديلات</option>
+          <option value="delete">الحذف</option>
+        </select>
+      </div>
+    </div>
+    <div class="glass glass-sm" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>الإجراء</th><th>النوع</th><th>المستخدم</th><th>الصلاحية</th><th>التاريخ والوقت</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('activity');
+DB.requireAuth();
+var allLog = [], filtLog = [], curType = 'all';
+
+var typeIcon = {entry:'📦',login:'🔐',logout:'🚪',edit:'✏️',delete:'🗑️'};
+var typeBadge = {
+  entry:  '<span class="badge badge-in">حركة</span>',
+  login:  '<span class="badge badge-admin">دخول</span>',
+  logout: '<span class="badge badge-viewer">خروج</span>',
+  edit:   '<span class="badge badge-low">تعديل</span>',
+  delete: '<span class="badge badge-out">حذف</span>',
+};
+
+function render() {
+  allLog = DB.getActivity();
+  applyFilter();
+}
+
+function filterLog(q) {
+  if (!q) { filtLog = allLog.filter(function(l){return curType==='all'||l.type===curType;}); }
+  else { var lq=q.toLowerCase(); filtLog=allLog.filter(function(l){return (l.desc||'').toLowerCase().includes(lq)||(l.user||'').toLowerCase().includes(lq);}); }
+  renderTable(filtLog);
+}
+
+function filterType(t) { curType=t; applyFilter(); }
+
+function applyFilter() {
+  filtLog = curType==='all' ? allLog.slice() : allLog.filter(function(l){return l.type===curType;});
+  renderTable(filtLog);
+}
+
+function renderTable(data) {
+  document.getElementById('log-body').innerHTML = data.slice(0,200).map(function(l){
+    var icon = typeIcon[l.type] || '📝';
+    var badge = typeBadge[l.type] || '<span class="badge">'+l.type+'</span>';
+    return '<tr><td><span style="margin-left:6px">'+icon+'</span>'+l.desc+'</td>'+
+      '<td>'+badge+'</td>'+
+      '<td style="font-weight:600">'+l.user+'</td>'+
+      '<td><span class="badge '+(l.role==='admin'?'badge-admin':l.role==='manager'?'badge-manager':'badge-viewer')+'">'+l.role+'</span></td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+l.date+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--tx3)">لا توجد سجلات</td></tr>';
+}
+
+render();
+</script>
+</body>
+</html>

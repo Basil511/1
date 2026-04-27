@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>المخزون الحالي — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>🗄️ المخزون الحالي</h1><p>رصيد جميع القطع</p></div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-sm" onclick="exportExcel()">تصدير Excel</button>
+      <button class="btn btn-warn btn-sm" onclick="setFilter('low')">⚠️ تحت الحد فقط</button>
+      <button class="btn btn-primary btn-sm" onclick="setFilter('all')">الكل</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <!-- Filters -->
+    <div class="glass glass-sm" style="padding:16px;margin-bottom:16px">
+      <div class="flex gap-12" style="flex-wrap:wrap;align-items:center">
+        <div class="search-wrap" style="flex:1;min-width:200px"><span class="search-icon">🔍</span><input class="g-input" style="padding:9px 12px 9px 36px;font-size:13px" placeholder="بحث بالاسم أو الباركود أو الموقع..." oninput="filterStock(this.value)"/></div>
+        <select class="g-input g-select" style="width:160px;padding:9px 12px" onchange="setSortBy(this.value)">
+          <option value="name">ترتيب: الاسم</option>
+          <option value="balance">ترتيب: الرصيد</option>
+          <option value="value">ترتيب: القيمة</option>
+          <option value="low">الأقل رصيداً</option>
+        </select>
+        <div style="font-size:12px;color:var(--tx3)">إجمالي القيمة: <strong id="total-val" style="color:var(--gn)">0 ر.س</strong></div>
+      </div>
+    </div>
+    <!-- Table -->
+    <div class="glass glass-sm" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>المنتج</th><th>الباركود</th><th>السعة</th>
+          <th>إجمالي دخول</th><th>إجمالي خروج</th><th>الرصيد</th>
+          <th>الحد الأدنى</th><th>السعر</th><th>القيمة</th>
+          <th>الموقع</th><th>الحالة</th><th></th>
+        </tr></thead>
+        <tbody id="stock-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<!-- Min stock modal -->
+<div id="min-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card">
+    <div class="modal-title">⚙️ تعيين الحد الأدنى</div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:16px;text-align:center" id="min-name"></p>
+    <div class="field mb-16">
+      <label>الحد الأدنى للمخزون</label>
+      <input class="g-input" id="min-val" type="number" min="0" placeholder="مثال: 5"/>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveMin()">حفظ ✓</button>
+      <button class="btn btn-primary" onclick="document.getElementById('min-modal').classList.remove('on')">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('stock');
+DB.requireAuth();
+
+var allStock = [], filtStock = [], curFilter = 'all', curSort = 'name', minBC = '';
+
+function loadStock() {
+  allStock = DB.getStock();
+  applyFilter();
+}
+
+function applyFilter() {
+  filtStock = allStock.filter(function(i){ return curFilter === 'low' ? i.lowStock : true; });
+  filtStock.sort(function(a,b){
+    if (curSort==='balance') return a.balance - b.balance;
+    if (curSort==='value')   return b.value - a.value;
+    if (curSort==='low')     return a.balance - b.balance;
+    return a.name.localeCompare(b.name,'ar');
+  });
+  var total = filtStock.reduce(function(s,i){return s+i.value;},0);
+  document.getElementById('total-val').textContent = fmtMoney(total);
+  renderStock(filtStock);
+  updateNavBadge();
+}
+
+function filterStock(q) {
+  if (!q) { filtStock = allStock.slice(); }
+  else { var lq=q.toLowerCase(); filtStock=allStock.filter(function(i){return (i.name||'').toLowerCase().includes(lq)||(i.barcode||'').toLowerCase().includes(lq)||(i.location||'').toLowerCase().includes(lq);}); }
+  if (curFilter==='low') filtStock=filtStock.filter(function(i){return i.lowStock;});
+  renderStock(filtStock);
+}
+
+function setFilter(f) { curFilter=f; applyFilter(); }
+function setSortBy(v) { curSort=v; applyFilter(); }
+
+function renderStock(data) {
+  document.getElementById('stock-body').innerHTML = data.length ? data.map(function(i){
+    var balColor = i.balance < 0 ? 'var(--rd)' : i.balance === 0 ? 'var(--tx3)' : 'var(--gn)';
+    var status   = i.balance < 0 ? '<span class="badge badge-out">عجز</span>' : i.lowStock ? '<span class="badge badge-low">⚠️ منخفض</span>' : i.balance === 0 ? '<span class="badge" style="background:rgba(180,210,255,.10);color:var(--tx3)">نفدت</span>' : '<span class="badge badge-in">جيد</span>';
+    return '<tr>'+
+      '<td><strong>'+i.name+'</strong></td>'+
+      '<td class="td-bc">'+i.barcode+'</td>'+
+      '<td style="color:var(--tx2)">'+(i.size||'—')+'</td>'+
+      '<td style="text-align:center;color:var(--gn);font-weight:700">'+fmtNum(i.inQty)+'</td>'+
+      '<td style="text-align:center;color:var(--rd);font-weight:700">'+fmtNum(i.outQty)+'</td>'+
+      '<td style="text-align:center;font-weight:900;font-size:16px;color:'+balColor+'">'+fmtNum(i.balance)+'</td>'+
+      '<td style="text-align:center"><button class="btn btn-primary btn-sm" onclick="openMin(\''+i.barcode+'\',\''+i.name+'\','+i.minStock+')">'+fmtNum(i.minStock)+'</button></td>'+
+      '<td style="color:var(--tx2)">'+(i.price?fmtMoney(i.price):'—')+'</td>'+
+      '<td style="font-weight:700;color:var(--bl)">'+fmtMoney(i.value)+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(i.location||'—')+'</td>'+
+      '<td>'+status+'</td>'+
+      '<td><button class="btn btn-primary btn-icon" onclick="location.href=\'inventory.html\'" title="إضافة حركة">+</button></td>'+
+      '</tr>';
+  }).join('') : '<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--tx3)">لا توجد بيانات مخزون</td></tr>';
+}
+
+function openMin(bc, name, cur) {
+  minBC = bc;
+  document.getElementById('min-name').textContent = name;
+  document.getElementById('min-val').value = cur || 0;
+  document.getElementById('min-modal').classList.add('on');
+  setTimeout(function(){ document.getElementById('min-val').focus(); },200);
+}
+function saveMin() {
+  var v = parseInt(document.getElementById('min-val').value) || 0;
+  DB.setMinStock(minBC, v);
+  document.getElementById('min-modal').classList.remove('on');
+  loadStock(); tst('تم تعيين الحد الأدنى ✓','g');
+}
+
+function exportExcel() {
+  if (!XLSX) { tst('مكتبة Excel غير متوفرة','r'); return; }
+  var rows = [['المنتج','الباركود','السعة','دخول','خروج','الرصيد','الحد الأدنى','السعر','القيمة','الموقع','الحالة']];
+  filtStock.forEach(function(i){
+    rows.push([i.name,i.barcode,i.size||'',i.inQty,i.outQty,i.balance,i.minStock,i.price||'',i.value.toFixed(2),i.location||'',i.balance<0?'عجز':i.lowStock?'منخفض':i.balance===0?'نفدت':'جيد']);
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'المخزون');
+  var d=new Date();XLSX.writeFile(wb,'مخزون_'+d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()+'.xlsx');
+  tst('تم تصدير الملف ✓','g');
+}
+
+loadStock();
+</script>
+</body>
+</html>

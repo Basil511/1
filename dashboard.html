@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>لوحة التحكم — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>📊 لوحة التحكم</h1>
+      <p id="today-date"></p>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-sm" onclick="location.href='inventory.html'">➕ إضافة حركة</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <!-- Charts + Low Stock -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="charts-row">
+      <!-- Bar chart -->
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="flex-between mb-12">
+          <div>
+            <div class="fw-bold" style="font-size:14px">حركة المخزون</div>
+            <div class="text-muted" style="font-size:11px">آخر 7 أيام</div>
+          </div>
+          <div class="flex gap-8" style="font-size:10px">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--gn);border-radius:2px;display:inline-block"></span>دخول</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--rd);border-radius:2px;display:inline-block"></span>خروج</span>
+          </div>
+        </div>
+        <div class="bar-chart" id="bar-chart"></div>
+      </div>
+      <!-- Top moving parts -->
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">🔝 أكثر القطع حركة</div>
+        <div id="top-parts"></div>
+      </div>
+    </div>
+    <!-- Low stock alerts -->
+    <div id="low-stock-section"></div>
+    <!-- Recent activity -->
+    <div class="glass glass-sm" style="padding:20px">
+      <div class="flex-between mb-12">
+        <div class="fw-bold" style="font-size:14px">🕒 آخر الحركات</div>
+        <a href="activity.html" class="btn btn-primary btn-sm">عرض الكل</a>
+      </div>
+      <div class="tbl-wrap">
+        <table id="recent-table">
+          <thead><tr>
+            <th>المنتج</th><th>الباركود</th><th>الكمية</th><th>النوع</th><th>التاريخ</th><th>المستخدم</th>
+          </tr></thead>
+          <tbody id="recent-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('dashboard');
+var session = DB.requireAuth();
+
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('ar-SA-u-nu-latn',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function render() {
+  var stats = DB.getStats();
+  // KPIs
+  document.getElementById('kpi-grid').innerHTML = [
+    {icon:'🗄️',val:stats.totalParts,lbl:'إجمالي الأصناف',sub:'صنف مختلف',cls:''},
+    {icon:'💰',val:fmtMoney(stats.totalValue),lbl:'قيمة المخزون',sub:'إجمالي الرصيد',cls:'kpi-bl'},
+    {icon:'📥',val:stats.todayIn,lbl:'دخول اليوم',sub:'وحدة أضيفت',cls:'kpi-gn'},
+    {icon:'📤',val:stats.todayOut,lbl:'خروج اليوم',sub:'وحدة صُرفت',cls:'kpi-rd'},
+    {icon:'⚠️',val:stats.lowStockCount,lbl:'تحت الحد الأدنى',sub:'تحتاج إعادة طلب',cls:'kpi-yw'},
+    {icon:'📋',val:stats.totalMovements,lbl:'إجمالي الحركات',sub:'منذ البداية',cls:''},
+  ].map(function(k){
+    return '<div class="glass glass-sm kpi-card '+k.cls+'"><span class="kpi-icon">'+k.icon+'</span><div class="kpi-val">'+k.val+'</div><div class="kpi-lbl">'+k.lbl+'</div><div class="kpi-sub">'+k.sub+'</div></div>';
+  }).join('');
+
+  // Bar chart
+  var maxVal = Math.max(1, Math.max.apply(null, stats.chartDays.map(function(d){ return Math.max(d.inQty,d.outQty); })));
+  document.getElementById('bar-chart').innerHTML = stats.chartDays.map(function(d){
+    var inH  = Math.max(4, Math.round(d.inQty  / maxVal * 120));
+    var outH = Math.max(4, Math.round(d.outQty / maxVal * 120));
+    return '<div class="bar-group"><div class="bar-pair"><div class="bar in-bar" style="height:'+inH+'px" title="دخول: '+d.inQty+'"></div><div class="bar out-bar" style="height:'+outH+'px" title="خروج: '+d.outQty+'"></div></div><div class="bar-label">'+d.label+'</div></div>';
+  }).join('');
+
+  // Top parts
+  document.getElementById('top-parts').innerHTML = stats.topParts.length ? stats.topParts.map(function(p,i){
+    return '<div class="flex-between" style="padding:8px 0;border-bottom:1px solid rgba(180,210,255,.07)"><div class="flex gap-8" style="align-items:center"><span style="font-size:11px;font-weight:700;color:var(--tx3);width:16px">'+(i+1)+'</span><span style="font-size:13px;font-weight:600">'+p.name+'</span></div><span class="tag">'+fmtNum(p.total)+' وحدة</span></div>';
+  }).join('') : '<div class="empty-state" style="padding:20px"><p>لا توجد بيانات</p></div>';
+
+  // Low stock
+  var lowItems = stats.lowStockItems;
+  document.getElementById('low-stock-section').innerHTML = lowItems.length ? `
+    <div class="glass glass-sm" style="padding:20px;margin-bottom:16px;border-top-color:rgba(255,208,96,.65)">
+      <div class="flex-between mb-12">
+        <div class="fw-bold text-yw" style="font-size:14px">⚠️ تنبيه — قطع تحت الحد الأدنى (${lowItems.length})</div>
+        <a href="stock.html" class="btn btn-warn btn-sm">عرض المخزون</a>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+        ${lowItems.map(function(i){ return `<div class="glass glass-xs" style="padding:12px;border-top-color:rgba(255,208,96,.52)"><div style="font-size:13px;font-weight:700;margin-bottom:4px">${i.name}</div><div style="font-size:11px;color:var(--tx3)">${i.barcode}</div><div class="flex-between" style="margin-top:8px"><span class="badge badge-low">رصيد: ${i.balance}</span><span style="font-size:10px;color:var(--tx3)">حد: ${i.minStock}</span></div></div>`; }).join('')}
+      </div>
+    </div>` : '';
+
+  // Recent movements
+  var entries = DB.getEntries().slice(0,10);
+  document.getElementById('recent-body').innerHTML = entries.length ? entries.map(function(e){
+    return '<tr><td><strong>'+e.name+'</strong></td><td class="td-bc">'+e.barcode+'</td><td style="text-align:center;font-weight:700;color:'+(e.type==='in'?'var(--gn)':'var(--rd)')+'">'+e.qty+'</td><td><span class="badge '+(e.type==='in'?'badge-in':'badge-out')+'">'+(e.type==='in'?'إضافة':'صرف')+'</span></td><td style="font-size:11px;color:var(--tx3)">'+e.date+'</td><td style="font-size:11px;color:var(--tx2)">'+(e.addedBy||'—')+'</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات بعد</td></tr>';
+
+  updateNavBadge();
+}
+
+render();
+// Auto refresh every 30s
+setInterval(render, 30000);
+</script>
+</body>
+</html>

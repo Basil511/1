@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>التقارير — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>📈 التقارير</h1><p>تحليل المخزون والحركات</p></div>
+    <div class="flex gap-8">
+      <button class="btn btn-success btn-sm" onclick="exportExcel()">تصدير Excel</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <!-- Date filters -->
+    <div class="glass glass-sm" style="padding:16px;margin-bottom:16px">
+      <div class="flex gap-12 mb-8" style="flex-wrap:wrap;align-items:center">
+        <div class="field" style="flex:0;min-width:150px"><label>من تاريخ</label><input class="g-input" type="date" id="date-from" style="padding:9px 12px"/></div>
+        <div class="field" style="flex:0;min-width:150px"><label>إلى تاريخ</label><input class="g-input" type="date" id="date-to" style="padding:9px 12px"/></div>
+        <div class="field" style="flex:0;min-width:130px"><label>نوع الحركة</label>
+          <select class="g-input g-select" id="type-filter" style="padding:9px 12px">
+            <option value="all">الكل</option><option value="in">إضافة فقط</option><option value="out">صرف فقط</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="applyFilter()" style="align-self:flex-end;margin-bottom:1px">تطبيق</button>
+        <button class="btn btn-primary btn-sm" onclick="resetFilter()" style="align-self:flex-end;margin-bottom:1px">إعادة تعيين</button>
+      </div>
+    </div>
+    <!-- KPIs -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)" id="rep-kpis"></div>
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">📊 حركة المخزون يومياً</div>
+        <div class="bar-chart" id="rep-chart" style="height:160px"></div>
+      </div>
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">🔝 أكثر الأصناف حركة</div>
+        <div id="rep-top"></div>
+      </div>
+    </div>
+    <!-- Table -->
+    <div class="glass glass-sm" style="padding:20px">
+      <div class="flex-between mb-12">
+        <div class="fw-bold" style="font-size:14px">تفاصيل الحركات</div>
+        <div style="font-size:12px;color:var(--tx3)" id="rep-count"></div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>المنتج</th><th>الباركود</th><th>الكمية</th><th>النوع</th><th>السعر</th><th>القيمة</th><th>الموقع</th><th>التاريخ</th><th>المستخدم</th></tr></thead>
+        <tbody id="rep-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('reports');
+DB.requireAuth();
+
+var filtered = [];
+
+function resetFilter() {
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value   = '';
+  document.getElementById('type-filter').value = 'all';
+  applyFilter();
+}
+
+function applyFilter() {
+  var from = document.getElementById('date-from').value;
+  var to   = document.getElementById('date-to').value;
+  var type = document.getElementById('type-filter').value;
+  var entries = DB.getEntries();
+  filtered = entries.filter(function(e) {
+    if (type !== 'all' && e.type !== type) return false;
+    if (from && e.date && e.date < from) return false;
+    if (to   && e.date && e.date.substring(0,10) > to) return false;
+    return true;
+  });
+  render();
+}
+
+function render() {
+  var inItems  = filtered.filter(function(e){return e.type==='in';});
+  var outItems = filtered.filter(function(e){return e.type==='out';});
+  var inQty    = inItems.reduce(function(s,e){return s+e.qty;},0);
+  var outQty   = outItems.reduce(function(s,e){return s+e.qty;},0);
+  var inVal    = inItems.reduce(function(s,e){return s+(e.qty*(parseFloat(e.price)||0));},0);
+  var outVal   = outItems.reduce(function(s,e){return s+(e.qty*(parseFloat(e.price)||0));},0);
+
+  document.getElementById('rep-kpis').innerHTML = [
+    {icon:'📥',val:fmtNum(inQty),lbl:'إجمالي الدخول',sub:'وحدة',cls:'kpi-gn'},
+    {icon:'📤',val:fmtNum(outQty),lbl:'إجمالي الخروج',sub:'وحدة',cls:'kpi-rd'},
+    {icon:'💰',val:fmtMoney(inVal),lbl:'قيمة الدخول',sub:'ر.س',cls:'kpi-bl'},
+    {icon:'💸',val:fmtMoney(outVal),lbl:'قيمة الخروج',sub:'ر.س',cls:'kpi-yw'},
+  ].map(function(k){return '<div class="glass glass-sm kpi-card '+k.cls+'"><span class="kpi-icon">'+k.icon+'</span><div class="kpi-val">'+k.val+'</div><div class="kpi-lbl">'+k.lbl+'</div></div>';}).join('');
+
+  // Chart — last 14 days
+  var days = {}, sortedDays = [];
+  filtered.forEach(function(e){
+    var d = (e.date||'').substring(0,10);
+    if (!d) return;
+    if (!days[d]) days[d] = {inQ:0,outQ:0};
+    if (e.type==='in') days[d].inQ += e.qty;
+    else days[d].outQ += e.qty;
+  });
+  sortedDays = Object.keys(days).sort().slice(-14);
+  var maxV = Math.max(1, ...sortedDays.map(function(d){return Math.max(days[d].inQ,days[d].outQ);}));
+  document.getElementById('rep-chart').innerHTML = sortedDays.length ? sortedDays.map(function(d){
+    var inH  = Math.max(4,Math.round(days[d].inQ /maxV*150));
+    var outH = Math.max(4,Math.round(days[d].outQ/maxV*150));
+    return '<div class="bar-group"><div class="bar-pair"><div class="bar in-bar" style="height:'+inH+'px"></div><div class="bar out-bar" style="height:'+outH+'px"></div></div><div class="bar-label">'+d.slice(5)+'</div></div>';
+  }).join('') : '<div style="text-align:center;color:var(--tx3);padding:20px">لا توجد بيانات</div>';
+
+  // Top parts
+  var pMap = {};
+  filtered.forEach(function(e){
+    if (!pMap[e.barcode]) pMap[e.barcode]={name:e.name,qty:0};
+    pMap[e.barcode].qty += e.qty;
+  });
+  var top = Object.values(pMap).sort(function(a,b){return b.qty-a.qty;}).slice(0,6);
+  document.getElementById('rep-top').innerHTML = top.length ? top.map(function(p,i){
+    return '<div class="flex-between" style="padding:7px 0;border-bottom:1px solid rgba(180,210,255,.07)"><div class="flex gap-8"><span style="font-size:11px;font-weight:700;color:var(--tx3);width:16px">'+(i+1)+'</span><span style="font-size:13px;font-weight:600">'+p.name+'</span></div><span class="tag">'+fmtNum(p.qty)+' وحدة</span></div>';
+  }).join('') : '<div class="empty-state" style="padding:16px"><p>لا توجد بيانات</p></div>';
+
+  // Table
+  document.getElementById('rep-count').textContent = fmtNum(filtered.length) + ' حركة';
+  document.getElementById('rep-body').innerHTML = filtered.slice(0,100).map(function(e){
+    var val = e.qty * (parseFloat(e.price)||0);
+    return '<tr><td><strong>'+e.name+'</strong></td><td class="td-bc">'+e.barcode+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:'+(e.type==='in'?'var(--gn)':'var(--rd)')+'">'+e.qty+'</td>'+
+      '<td><span class="badge '+(e.type==='in'?'badge-in':'badge-out')+'">'+(e.type==='in'?'إضافة':'صرف')+'</span></td>'+
+      '<td style="color:var(--tx2)">'+(e.price?fmtMoney(e.price):'—')+'</td>'+
+      '<td style="color:var(--bl);font-weight:700">'+(val?fmtMoney(val):'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.location||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+e.date+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.addedBy||'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات</td></tr>';
+}
+
+function exportExcel() {
+  var rows = [['المنتج','الباركود','الكمية','النوع','السعر','القيمة','الموقع','التاريخ','المستخدم']];
+  filtered.forEach(function(e){
+    rows.push([e.name,e.barcode,e.qty,e.type==='in'?'إضافة':'صرف',e.price||'',e.qty*(parseFloat(e.price)||0),e.location||'',e.date,e.addedBy||'']);
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'التقرير');
+  var d=new Date();XLSX.writeFile(wb,'تقرير_'+d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()+'.xlsx');
+  tst('تم تصدير التقرير ✓','g');
+}
+
+applyFilter();
+</script>
+</body>
+</html>

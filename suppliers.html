@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>الموردون — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>🏭 الموردون</h1><p>إدارة قائمة الموردين</p></div>
+    <button class="btn btn-success" onclick="openModal()">➕ إضافة مورد</button>
+  </div>
+  <div class="page-body">
+    <div class="glass glass-sm" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>اسم المورد</th><th>رقم الجوال</th><th>البريد الإلكتروني</th><th>المنتجات</th><th>ملاحظة</th><th>الإجراءات</th></tr></thead>
+        <tbody id="sup-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="sup-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card">
+    <div class="modal-title" id="modal-title">➕ إضافة مورد</div>
+    <div class="form-grid mb-16">
+      <div class="field" style="grid-column:span 2"><label>اسم المورد</label><input class="g-input" id="s-name" placeholder="اسم الشركة أو المورد"/></div>
+      <div class="field"><label>رقم الجوال / واتساب</label><input class="g-input" id="s-phone" placeholder="05xxxxxxxx" type="tel"/></div>
+      <div class="field"><label>البريد الإلكتروني</label><input class="g-input" id="s-email" placeholder="email@example.com" type="email"/></div>
+      <div class="field" style="grid-column:span 2"><label>المنتجات / التخصص</label><input class="g-input" id="s-products" placeholder="مثال: فلاتر، زيوت، إطارات"/></div>
+      <div class="field" style="grid-column:span 2"><label>ملاحظة</label><input class="g-input" id="s-note" placeholder="أي ملاحظة..."/></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveSupplier()">حفظ ✓</button>
+      <button class="btn btn-primary" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('suppliers');
+DB.requireAuth();
+var editId = null;
+
+function openModal(s) {
+  editId = s ? s.id : null;
+  document.getElementById('modal-title').textContent = s ? '✏️ تعديل المورد' : '➕ إضافة مورد';
+  document.getElementById('s-name').value     = s ? s.name     : '';
+  document.getElementById('s-phone').value    = s ? s.phone    : '';
+  document.getElementById('s-email').value    = s ? s.email    : '';
+  document.getElementById('s-products').value = s ? s.products : '';
+  document.getElementById('s-note').value     = s ? s.note     : '';
+  document.getElementById('sup-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('s-name').focus();},200);
+}
+function closeModal(){document.getElementById('sup-modal').classList.remove('on');}
+
+function saveSupplier() {
+  var data = {name:document.getElementById('s-name').value.trim(),phone:document.getElementById('s-phone').value.trim(),email:document.getElementById('s-email').value.trim(),products:document.getElementById('s-products').value.trim(),note:document.getElementById('s-note').value.trim()};
+  if (!data.name){tst('أدخل اسم المورد','r');return;}
+  if (editId) { DB.updateSupplier(editId,data); tst('تم التعديل ✓','g'); }
+  else        { DB.addSupplier(data);            tst('تمت الإضافة ✓','g'); }
+  closeModal(); render();
+}
+
+function render() {
+  var sups = DB.getSuppliers();
+  document.getElementById('sup-body').innerHTML = sups.length ? sups.map(function(s){
+    var wa = s.phone ? 'https://wa.me/966'+s.phone.replace(/^0/,'') : '';
+    return '<tr>'+
+      '<td><strong>'+s.name+'</strong></td>'+
+      '<td>'+(s.phone?'<a href="'+wa+'" target="_blank" style="color:var(--gn);text-decoration:none">📱 '+s.phone+'</a>':'—')+'</td>'+
+      '<td>'+(s.email?'<a href="mailto:'+s.email+'" style="color:var(--bl);text-decoration:none">'+s.email+'</a>':'—')+'</td>'+
+      '<td style="font-size:12px;color:var(--tx2)">'+(s.products||'—')+'</td>'+
+      '<td style="font-size:12px;color:var(--tx3)">'+(s.note||'—')+'</td>'+
+      '<td><div class="flex gap-8">'+
+        (s.phone?'<a href="'+wa+'" target="_blank" class="btn btn-success btn-sm">واتساب</a>':'')+
+        '<button class="btn btn-primary btn-sm" onclick=\'openModal('+JSON.stringify(s)+')\'>تعديل</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="delSup('+s.id+')">حذف</button>'+
+      '</div></td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--tx3)">لا يوجد موردون بعد</td></tr>';
+}
+
+function delSup(id){confirm2('حذف هذا المورد؟',function(){DB.deleteSupplier(id);render();tst('تم الحذف','r');});}
+render();
+</script>
+</body>
+</html>

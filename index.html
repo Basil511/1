@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مستودع قطع الغيار — تسجيل الدخول</title>
+<link rel="stylesheet" href="app.css">
+<style>
+#ls{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;
+  background:radial-gradient(ellipse 100% 80% at 10% 5%,rgba(0,55,130,.88) 0%,transparent 48%),
+             radial-gradient(ellipse 85% 70% at 92% 92%,rgba(0,28,85,.92) 0%,transparent 45%),
+             linear-gradient(160deg,#020A18 0%,#04121E 42%,#071E38 100%);}
+.l-orb{position:absolute;border-radius:50%;pointer-events:none;animation:op 14s ease-in-out infinite}
+.lo1{width:600px;height:600px;top:-220px;right:-180px;background:rgba(0,55,130,.42);filter:blur(90px)}
+.lo2{width:460px;height:460px;bottom:-160px;left:-150px;background:rgba(0,28,85,.52);filter:blur(100px);animation-delay:-6s}
+.lo3{width:280px;height:280px;top:38%;left:35%;background:rgba(0,120,200,.07);filter:blur(70px);animation-delay:-10s}
+@keyframes op{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.18) rotate(4deg)}}
+.l-card{position:relative;z-index:1;width:100%;max-width:420px;
+  padding:44px 32px 40px;text-align:center;
+  background:linear-gradient(170deg,rgba(220,235,255,.22) 0%,rgba(140,200,255,.10) 18%,rgba(8,35,90,.28) 60%,rgba(2,10,30,.42) 100%);
+  backdrop-filter:blur(64px) saturate(250%) brightness(1.06);-webkit-backdrop-filter:blur(64px) saturate(250%) brightness(1.06);
+  border-radius:30px;border-top:2px solid rgba(220,235,255,.68);border-left:1px solid rgba(180,210,255,.26);
+  border-right:1px solid rgba(150,185,255,.16);border-bottom:1px solid rgba(0,0,0,.45);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.40),inset 0 1px 0 rgba(220,235,255,.28),inset 0 -4px 12px rgba(0,0,0,.28),
+             0 0 0 1px rgba(180,210,255,.20),0 0 30px rgba(100,160,255,.16),0 44px 96px rgba(0,0,0,.75);overflow:hidden}
+.l-card::before{content:'';position:absolute;top:0;left:5%;right:5%;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(180,210,255,.55) 15%,rgba(255,255,255,.92) 50%,rgba(180,210,255,.55) 85%,transparent);
+  filter:blur(.4px);pointer-events:none;z-index:10}
+.l-card::after{content:'';position:absolute;top:0;left:0;right:0;height:46%;
+  background:linear-gradient(180deg,rgba(220,235,255,.10) 0%,transparent 100%);pointer-events:none;border-radius:30px 30px 50% 50%}
+.l-logo{position:relative;z-index:1;width:76px;height:76px;border-radius:22px;margin:0 auto 20px;font-size:34px;
+  background:linear-gradient(145deg,rgba(220,235,255,.22),rgba(10,40,100,.40));
+  border-top:2px solid rgba(220,235,255,.65);border-left:1px solid rgba(180,210,255,.24);
+  border-right:1px solid rgba(150,185,255,.14);border-bottom:1px solid rgba(0,0,0,.30);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.28),0 0 18px rgba(100,160,255,.18),0 8px 24px rgba(0,0,0,.55)}
+.l-title{position:relative;z-index:1;font-size:22px;font-weight:900;color:#E8F4FF;margin-bottom:4px;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.l-sub  {position:relative;z-index:1;font-size:13px;color:var(--tx2);margin-bottom:28px}
+.l-field{position:relative;z-index:1;text-align:right;margin-bottom:14px}
+.l-field label{display:block;font-size:10px;font-weight:700;color:rgba(120,190,240,.85);margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px}
+.l-btn{position:relative;z-index:1;width:100%;padding:14px;margin-top:8px;cursor:pointer;
+  font-family:'Cairo',sans-serif;font-size:15px;font-weight:800;color:#E8F4FF;
+  background:linear-gradient(165deg,rgba(220,235,255,.20) 0%,rgba(10,40,100,.45) 100%);
+  border-top:2px solid rgba(220,235,255,.65);border-left:1px solid rgba(180,210,255,.24);
+  border-right:1px solid rgba(150,185,255,.14);border-bottom:1px solid rgba(0,0,0,.35);
+  border-radius:16px;box-shadow:inset 0 2px 0 rgba(255,255,255,.28),0 0 18px rgba(100,160,255,.14),0 6px 22px rgba(0,0,0,.45);
+  transition:all .2s;text-shadow:0 1px 5px rgba(0,0,0,.5)}
+.l-btn:hover{background:linear-gradient(165deg,rgba(220,235,255,.30),rgba(10,40,100,.60));transform:translateY(-2px);box-shadow:inset 0 2px 0 rgba(255,255,255,.36),0 0 30px rgba(100,160,255,.26),0 12px 32px rgba(0,0,0,.60)}
+.l-btn:active{transform:scale(.98)}
+.l-err{position:relative;z-index:1;color:#FF8090;font-size:12px;margin-top:12px;min-height:18px;font-weight:600}
+.l-hint{position:relative;z-index:1;font-size:11px;color:var(--tx3);margin-top:16px}
+.l-shk{animation:lshk .42s ease}
+@keyframes lshk{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}60%{transform:translateX(8px)}80%{transform:translateX(-4px)}}
+</style>
+</head>
+<body>
+<div id="ls">
+  <div class="l-orb lo1"></div><div class="l-orb lo2"></div><div class="l-orb lo3"></div>
+  <div class="l-card">
+    <div class="l-logo">🔧</div>
+    <div class="l-title">مستودع قطع الغيار</div>
+    <div class="l-sub">نظام إدارة المخزون المتكامل</div>
+    <div class="l-field">
+      <label>اسم المستخدم</label>
+      <input class="g-input" id="un" type="text" placeholder="اكتب اسم المستخدم..." autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('pw').focus()"/>
+    </div>
+    <div class="l-field">
+      <label>كلمة المرور</label>
+      <input class="g-input" id="pw" type="password" placeholder="اكتب كلمة المرور..." autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="l-btn" onclick="doLogin()">دخول ←</button>
+    <div class="l-err" id="lerr"></div>
+    <div class="l-hint">الدخول الافتراضي: admin / 1234</div>
+  </div>
+</div>
+<script src="db.js"></script>
+<script>
+// Redirect if already logged in
+if (DB.getSession()) window.location.href = 'dashboard.html';
+function doLogin() {
+  var un = document.getElementById('un').value.trim();
+  var pw = document.getElementById('pw').value;
+  var err= document.getElementById('lerr');
+  var box= document.querySelector('.l-card');
+  var session = DB.login(un, pw);
+  if (session) {
+    window.location.href = 'dashboard.html';
+  } else {
+    err.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
+    box.classList.add('l-shk');
+    document.getElementById('pw').value = '';
+    setTimeout(function(){ box.classList.remove('l-shk'); err.textContent = ''; }, 2500);
+    document.getElementById('pw').focus();
+  }
+}
+</script>
+</body>
+</html>

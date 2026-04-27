@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>الجرد والحركة — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.mode-tab{padding:12px;text-align:center;border-radius:16px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;color:var(--tx2);transition:all .2s;
+  background:linear-gradient(160deg,rgba(220,235,255,.14),rgba(10,40,100,.32));
+  border-top:2px solid rgba(220,235,255,.42);border-left:1px solid rgba(180,210,255,.16);border-right:1px solid rgba(150,185,255,.10);border-bottom:1px solid rgba(0,0,0,.30);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 4px 14px rgba(0,0,0,.30);position:relative;overflow:hidden}
+.mode-tab::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1.5px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.70),transparent);pointer-events:none}
+.mode-tab.a-in{background:linear-gradient(160deg,rgba(0,245,184,.22),rgba(0,245,184,.07));border-top-color:rgba(0,255,210,.50);color:var(--gn);box-shadow:inset 0 2px 0 rgba(0,255,210,.28),0 0 24px rgba(0,245,184,.14)}
+.mode-tab.a-out{background:linear-gradient(160deg,rgba(255,77,96,.22),rgba(255,77,96,.07));border-top-color:rgba(255,160,170,.50);color:var(--rd);box-shadow:inset 0 2px 0 rgba(255,160,170,.28),0 0 24px rgba(255,77,96,.14)}
+.bc-row{display:flex;gap:8px}
+.bc-row input{flex:1}
+.btn-cam{width:50px;flex-shrink:0;font-size:20px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(145deg,rgba(220,235,255,.18),rgba(10,40,100,.40));
+  border-top:2px solid rgba(220,235,255,.62);border-left:1px solid rgba(180,210,255,.22);border-right:1px solid rgba(150,185,255,.12);border-bottom:1px solid rgba(0,0,0,.40);
+  border-radius:14px;cursor:pointer;transition:all .15s;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.26),0 0 14px rgba(80,150,255,.14),0 4px 14px rgba(0,0,0,.38)}
+.btn-cam:hover{transform:scale(1.06)}
+.dup-box{display:none;margin-top:10px;padding:12px 14px;
+  background:linear-gradient(165deg,rgba(255,208,96,.16),rgba(255,208,96,.04));
+  border-top:2px solid rgba(255,230,100,.48);border-left:1px solid rgba(255,208,96,.20);border-right:1px solid rgba(255,208,96,.12);border-bottom:1px solid rgba(0,0,0,.22);
+  border-radius:14px;backdrop-filter:blur(20px)}
+.dup-box.on{display:block}
+.dup-row{background:rgba(0,0,0,.22);border-radius:9px;padding:6px 10px;font-size:11px;color:var(--tx2);display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;justify-content:space-between}
+.cam-ov{display:none;position:fixed;inset:0;z-index:300;background:#000;flex-direction:column}
+.cam-ov.on{display:flex}
+.cam-top{background:rgba(4,18,32,.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(180,210,255,.12);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cam-body{flex:1;position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+#scv{width:100%;height:100%;object-fit:cover}
+.cam-frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.cam-box{width:260px;height:150px;position:relative}
+.cc{position:absolute;width:30px;height:30px}
+.cc-tl{top:0;right:0;border-top:3px solid var(--gn);border-right:3px solid var(--gn);border-radius:0 6px 0 0}
+.cc-tr{top:0;left:0;border-top:3px solid var(--gn);border-left:3px solid var(--gn);border-radius:6px 0 0 0}
+.cc-bl{bottom:0;right:0;border-bottom:3px solid var(--gn);border-right:3px solid var(--gn);border-radius:0 0 6px 0}
+.cc-br{bottom:0;left:0;border-bottom:3px solid var(--gn);border-left:3px solid var(--gn);border-radius:0 0 0 6px}
+.scl{position:absolute;right:0;left:0;height:2px;background:linear-gradient(90deg,transparent,var(--gn),transparent);top:50%;animation:smv 1.8s ease-in-out infinite}
+@keyframes smv{0%,100%{top:8%}50%{top:88%}}
+.cam-st{background:rgba(0,0,0,.80);backdrop-filter:blur(16px);border-top:1px solid rgba(180,210,255,.10);padding:14px;text-align:center;color:var(--tx);font-size:13px;flex-shrink:0;min-height:50px;display:flex;align-items:center;justify-content:center}
+.cam-st.ok{color:var(--gn);font-weight:700}.cam-st.er{color:var(--rd)}
+/* Stock err modal */
+#stock-err-modal{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:20px}
+#stock-err-modal.on{display:flex}
+.se-card{background:linear-gradient(160deg,rgba(255,80,100,.20) 0%,rgba(8,30,70,.92) 100%);backdrop-filter:blur(52px);border-top:2px solid rgba(255,170,180,.46);border:1px solid rgba(255,77,96,.28);border-radius:26px;padding:30px 26px;width:100%;max-width:360px;text-align:center;box-shadow:inset 0 2px 0 rgba(255,180,190,.28),0 40px 90px rgba(0,0,0,.75),0 0 48px rgba(255,77,96,.12);animation:seIn .3s cubic-bezier(.34,1.56,.64,1);position:relative;z-index:9001;pointer-events:all;overflow:hidden}
+@keyframes seIn{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
+.se-nums{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.se-num{border-radius:14px;padding:14px 10px;text-align:center}
+.se-num.avail{background:rgba(0,245,184,.14);border:1px solid rgba(0,245,184,.32)}
+.se-num.req  {background:rgba(255,77,96,.16);border:1px solid rgba(255,77,96,.34)}
+.se-big{font-size:28px;font-weight:900;line-height:1;margin-bottom:4px}
+.se-num.avail .se-big{color:var(--gn)}.se-num.req .se-big{color:var(--rd)}
+/* Dup confirm */
+#dup-confirm{display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:20px}
+#dup-confirm.on{display:flex}
+.dc-card{background:linear-gradient(165deg,rgba(255,208,96,.18),rgba(8,30,70,.92));backdrop-filter:blur(52px);border-top:2px solid rgba(255,230,100,.58);border:1px solid rgba(255,208,96,.24);border-radius:26px;padding:30px 26px;width:100%;max-width:420px;text-align:center;box-shadow:inset 0 2px 0 rgba(255,240,120,.30),0 40px 90px rgba(0,0,0,.75)}
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>📦 الجرد والحركة</h1><p>تسجيل دخول وخروج القطع</p></div>
+  </div>
+  <div class="page-body">
+    <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start">
+      <!-- Form -->
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="mode-tabs">
+          <div class="mode-tab a-in" id="ti" onclick="setM('in')">➕ إضافة للجرد</div>
+          <div class="mode-tab"       id="to" onclick="setM('out')">➖ صرف / خروج</div>
+        </div>
+        <div class="field mb-12">
+          <label>باركود المنتج</label>
+          <div class="bc-row">
+            <input class="g-input" id="bc" type="text" placeholder="امسح أو اكتب الباركود..." autocomplete="off" oninput="onBc(this.value)" onkeydown="if(event.key==='Enter')document.getElementById('nm').focus()"/>
+            <button class="btn-cam" onclick="opCam()" title="مسح بالكاميرا">📷</button>
+          </div>
+          <div class="dup-box" id="db">
+            <div style="font-size:13px;font-weight:700;color:var(--yw);margin-bottom:8px">⚠️ هذا الباركود مسجل مسبقاً</div>
+            <div id="dtl" style="display:flex;gap:14px;font-size:11px;color:var(--tx2);margin-bottom:8px;flex-wrap:wrap"></div>
+            <div id="drs"></div>
+          </div>
+        </div>
+        <div class="form-grid mb-12">
+          <div class="field"><label>اسم المنتج</label><input class="g-input" id="nm" type="text" placeholder="مثال: فلتر زيت" oninput="onNm(this.value)" onkeydown="if(event.key==='Enter')document.getElementById('sz').focus()"/></div>
+          <div class="field"><label>السعة / الوصف</label><input class="g-input" id="sz" type="text" placeholder="مثال: 1 لتر" onkeydown="if(event.key==='Enter')document.getElementById('qt').focus()"/></div>
+          <div class="field"><label>الكمية</label><input class="g-input" id="qt" type="number" value="1" min="1" onkeydown="if(event.key==='Enter')document.getElementById('pr').focus()"/></div>
+          <div class="field"><label>السعر (ر.س)</label><input class="g-input" id="pr" type="number" min="0" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter')document.getElementById('lc').focus()"/></div>
+          <div class="field"><label>الموقع في المستودع</label><input class="g-input" id="lc" type="text" placeholder="مثال: رف A3" onkeydown="if(event.key==='Enter')document.getElementById('sup').focus()"/></div>
+          <div class="field"><label>المورد</label>
+            <select class="g-input g-select" id="sup"><option value="">— اختر مورد —</option></select>
+          </div>
+          <div class="field" style="grid-column:span 2"><label>ملاحظة</label><input class="g-input" id="nt" type="text" placeholder="..." onkeydown="if(event.key==='Enter')sub()"/></div>
+        </div>
+        <button class="btn btn-success" id="badd" onclick="sub()" style="width:100%;justify-content:center;font-size:15px;padding:14px">➕ إضافة للجرد</button>
+      </div>
+      <!-- Recent entries -->
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="flex-between mb-12">
+          <div class="fw-bold" style="font-size:14px">آخر الحركات</div>
+          <div class="flex gap-8">
+            <div class="search-wrap"><span class="search-icon">🔍</span><input class="g-input" style="padding:8px 12px 8px 36px;font-size:13px;width:200px" placeholder="بحث..." oninput="filterEntries(this.value)"/></div>
+          </div>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>المنتج</th><th>باركود</th><th>الكمية</th><th>النوع</th><th>الموقع</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody id="tb"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Camera -->
+<div class="cam-ov" id="cov">
+  <div class="cam-top"><span style="color:var(--tx);font-size:15px;font-weight:700">📷 مسح الباركود</span>
+    <button class="btn btn-danger btn-sm" onclick="clCam()">إغلاق</button></div>
+  <div class="cam-body"><video id="scv" playsinline muted></video>
+    <div class="cam-frame"><div class="cam-box"><div class="cc cc-tl"></div><div class="cc cc-tr"></div><div class="cc cc-bl"></div><div class="cc cc-br"></div><div class="scl"></div></div></div>
+  </div>
+  <div class="cam-st" id="cst">جاري تشغيل الكاميرا...</div>
+</div>
+<!-- Stock error -->
+<div id="stock-err-modal">
+  <div class="se-card">
+    <div style="font-size:48px;margin-bottom:12px">🚫</div>
+    <h3 style="font-size:18px;font-weight:900;color:var(--rd);margin-bottom:8px">لا يمكن الصرف</h3>
+    <div class="se-name" id="se-name" style="font-size:13px;color:var(--tx);font-weight:700;margin-bottom:14px"></div>
+    <div class="se-nums">
+      <div class="se-num avail"><div class="se-big" id="se-avail">0</div><div style="font-size:11px;color:var(--tx3)">الرصيد المتاح</div></div>
+      <div class="se-num req">  <div class="se-big" id="se-req">0</div>  <div style="font-size:11px;color:var(--tx3)">الكمية المطلوبة</div></div>
+    </div>
+    <div id="se-hint" style="font-size:12px;color:var(--tx2);margin-bottom:18px;line-height:1.6"></div>
+    <button class="btn btn-danger" onclick="hideStockErr()" style="width:100%;justify-content:center;position:relative;z-index:9002;pointer-events:all">حسناً</button>
+  </div>
+</div>
+<!-- Dup confirm -->
+<div id="dup-confirm">
+  <div class="dc-card">
+    <div style="font-size:44px;margin-bottom:12px">⚠️</div>
+    <h3 style="font-size:17px;font-weight:900;color:var(--yw);margin-bottom:8px">باركود مسجل مسبقاً</h3>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:6px">منتج: <strong id="dc-name" style="color:var(--tx)"></strong></p>
+    <p style="font-size:12px;color:var(--tx3);margin-bottom:14px">الرصيد الحالي: <strong id="dc-bal" style="color:var(--gn)">0</strong> · تضيف: <strong id="dc-qty" style="color:var(--gn)">0</strong></p>
+    <p style="font-size:12px;color:var(--tx3);margin-bottom:20px">سيتم إضافة الكمية على رصيد المنتج الموجود</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="btn btn-success" onclick="doConfirmAdd()" style="justify-content:center">أضف للرصيد ✓</button>
+      <button class="btn btn-primary" onclick="document.getElementById('dup-confirm').classList.remove('on')" style="justify-content:center">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('inventory');
+var session = DB.requireAuth();
+
+var mode = 'in', allEntries = [], filtEntries = [];
+
+function setM(m) {
+  mode = m;
+  document.getElementById('ti').className = 'mode-tab' + (m==='in' ? ' a-in' : '');
+  document.getElementById('to').className = 'mode-tab' + (m==='out' ? ' a-out' : '');
+  var b = document.getElementById('badd');
+  b.className = 'btn ' + (m==='in' ? 'btn-success' : 'btn-danger');
+  b.style.cssText = 'width:100%;justify-content:center;font-size:15px;padding:14px';
+  b.textContent = m==='in' ? '➕ إضافة للجرد' : '➖ تسجيل صرف / خروج';
+}
+
+// Suppliers dropdown
+function loadSuppliers() {
+  var sel = document.getElementById('sup');
+  var opts = '<option value="">— اختر مورد —</option>';
+  DB.getSuppliers().forEach(function(s){ opts += '<option value="'+s.name+'">'+s.name+'</option>'; });
+  sel.innerHTML = opts;
+}
+loadSuppliers();
+
+// Barcode
+var bct;
+function onBc(v) {
+  clearTimeout(bct); chkDup(v);
+  if (v.length < 3) return;
+  bct = setTimeout(function() {
+    var p = DB.getEntries().find(function(e){ return e.barcode === v; });
+    if (p) {
+      if (!document.getElementById('nm').value) document.getElementById('nm').value = p.name || '';
+      if (!document.getElementById('sz').value) document.getElementById('sz').value = p.size || '';
+      if (!document.getElementById('lc').value) document.getElementById('lc').value = p.location || '';
+      if (!document.getElementById('pr').value) document.getElementById('pr').value = p.price || '';
+    }
+  }, 280);
+}
+
+var nmTm;
+function onNm(v) {
+  clearTimeout(nmTm);
+  if (v.length < 2) return;
+  nmTm = setTimeout(function() {
+    var lv = v.toLowerCase();
+    var m = DB.getEntries().find(function(e){ return e.name && e.name.toLowerCase().indexOf(lv) >= 0; });
+    if (m) {
+      var bcEl = document.getElementById('bc');
+      if (!bcEl.value) { bcEl.value = m.barcode; onBc(m.barcode); }
+      if (!document.getElementById('sz').value) document.getElementById('sz').value = m.size || '';
+      if (!document.getElementById('lc').value) document.getElementById('lc').value = m.location || '';
+      if (!document.getElementById('pr').value) document.getElementById('pr').value = m.price || '';
+    }
+  }, 350);
+}
+
+function chkDup(v) {
+  var box = document.getElementById('db');
+  if (!v || v.length < 3) { box.classList.remove('on'); return; }
+  var m = DB.getEntries().filter(function(e){ return e.barcode === v; });
+  if (!m.length) { box.classList.remove('on'); return; }
+  box.classList.add('on');
+  var inQ  = m.filter(function(e){return e.type==='in';}).reduce(function(s,e){return s+e.qty;},0);
+  var outQ = m.filter(function(e){return e.type==='out';}).reduce(function(s,e){return s+e.qty;},0);
+  var bal  = inQ - outQ;
+  document.getElementById('dtl').innerHTML =
+    '<span>الإضافات: <strong style="color:var(--gn)">'+inQ+'</strong></span>'+
+    '<span>الصرف: <strong style="color:var(--rd)">'+outQ+'</strong></span>'+
+    '<span>الرصيد: <strong style="color:'+(bal>=0?'var(--gn)':'var(--rd)')+'">'+bal+'</strong></span>';
+  var btnSt = 'font-family:Cairo,sans-serif;font-size:11px;font-weight:700;color:#E8F4FF;background:rgba(80,150,255,.20);border-top:1.5px solid rgba(220,235,255,.55);border-left:1px solid rgba(180,210,255,.22);border-right:1px solid rgba(150,185,255,.12);border-bottom:1px solid rgba(0,0,0,.28);border-radius:8px;padding:4px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0';
+  document.getElementById('drs').innerHTML = m.slice(0,3).map(function(e){
+    return '<div class="dup-row"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge '+(e.type==='in'?'badge-in':'badge-out')+'">'+(e.type==='in'?'إضافة':'صرف')+'</span><span>'+e.name+'</span><span>كمية: <strong>'+e.qty+'</strong></span><span style="color:var(--tx3);font-size:10px">'+e.date+'</span></div><button onclick="openEdit('+e.id+')" style="'+btnSt+'">✎ تعديل</button></div>';
+  }).join('');
+}
+
+var _pending = null;
+function sub() {
+  var bc   = document.getElementById('bc').value.trim();
+  var name = document.getElementById('nm').value.trim();
+  var size = document.getElementById('sz').value.trim();
+  var qty  = parseInt(document.getElementById('qt').value) || 1;
+  var price= document.getElementById('pr').value.trim();
+  var loc  = document.getElementById('lc').value.trim();
+  var sup  = document.getElementById('sup').value;
+  var note = document.getElementById('nt').value.trim();
+  if (!bc)   { tst('أدخل الباركود','r'); document.getElementById('bc').focus(); return; }
+  if (!name) { tst('أدخل اسم المنتج','r'); document.getElementById('nm').focus(); return; }
+  if (mode === 'in') {
+    var existing = DB.getEntries().filter(function(e){ return e.barcode === bc; });
+    if (existing.length > 0) {
+      _pending = {bc,name,size,qty,price,loc,sup,note};
+      var inQ  = existing.filter(function(e){return e.type==='in';}).reduce(function(s,e){return s+e.qty;},0);
+      var outQ = existing.filter(function(e){return e.type==='out';}).reduce(function(s,e){return s+e.qty;},0);
+      document.getElementById('dc-name').textContent = name;
+      document.getElementById('dc-bal').textContent  = inQ-outQ;
+      document.getElementById('dc-qty').textContent  = qty;
+      document.getElementById('dup-confirm').classList.add('on');
+      return;
+    }
+  }
+  if (mode === 'out') {
+    var bcE  = DB.getEntries().filter(function(e){return e.barcode===bc;});
+    var inQ2 = bcE.filter(function(e){return e.type==='in';}).reduce(function(s,e){return s+e.qty;},0);
+    var outQ2= bcE.filter(function(e){return e.type==='out';}).reduce(function(s,e){return s+e.qty;},0);
+    var bal  = inQ2 - outQ2;
+    if (!bcE.length) { tst('هذا الباركود غير مسجل في المستودع','r'); return; }
+    if (qty > bal)   { showStockErr(name||bc, bal, qty); return; }
+  }
+  doAdd(bc,name,size,qty,price,loc,sup,note,mode);
+}
+
+function doAdd(bc,name,size,qty,price,loc,sup,note,type) {
+  var now = new Date();
+  var ds  = now.toLocaleDateString('ar-SA-u-nu-latn')+'  '+now.toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
+  DB.addEntry({barcode:bc,name,size,qty:qty,price,location:loc,supplier:sup,note,type,date:ds,addedBy:session.name});
+  ['bc','nm','sz','nt','pr'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('qt').value='1'; document.getElementById('sup').value='';
+  document.getElementById('db').classList.remove('on');
+  document.getElementById('bc').focus();
+  loadEntries(); updateNavBadge();
+  tst(type==='in'?'تمت الإضافة ✓':'تم تسجيل الصرف ✓', type==='in'?'g':'r');
+}
+
+function doConfirmAdd() {
+  document.getElementById('dup-confirm').classList.remove('on');
+  if (!_pending) return;
+  var p = _pending; _pending = null;
+  var existing = DB.getEntries().filter(function(e){return e.barcode===p.bc && e.type==='in';});
+  if (existing.length > 0) {
+    DB.updateEntry(existing[0].id, {qty: existing[0].qty + p.qty});
+    ['bc','nm','sz','nt','pr'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('qt').value='1';
+    document.getElementById('db').classList.remove('on');
+    document.getElementById('bc').focus();
+    loadEntries(); updateNavBadge();
+    tst('تمت إضافة الكمية للرصيد ✓','g');
+  } else {
+    doAdd(p.bc,p.name,p.size,p.qty,p.price,p.loc,p.sup,p.note,'in');
+  }
+}
+
+function showStockErr(name,avail,req) {
+  document.getElementById('se-name').textContent  = name;
+  document.getElementById('se-avail').textContent = avail;
+  document.getElementById('se-req').textContent   = req;
+  document.getElementById('se-hint').textContent  = avail<=0?'لا يوجد رصيد متاح.':'الرصيد '+avail+' فقط. قلل الكمية إلى '+avail+' أو أقل.';
+  document.getElementById('stock-err-modal').style.display='flex';
+}
+function hideStockErr(){document.getElementById('stock-err-modal').style.display='none';document.getElementById('qt').focus();}
+
+// Edit modal
+var editId = null;
+function openEdit(id) {
+  var e = DB.getEntries().find(function(x){return x.id===id;});
+  if (!e) return;
+  editId = id;
+  var html = '<div class="glass glass-sm modal-card"><div class="modal-title">✏️ تعديل السجل</div>'+
+    '<div style="font-size:11px;color:var(--tx3);text-align:center;margin-bottom:14px">'+e.barcode+' · '+e.date+'</div>'+
+    '<div class="form-grid mb-12">'+
+    '<div class="field" style="grid-column:span 2"><label>اسم المنتج</label><input class="g-input" id="e-nm" value="'+e.name+'"/></div>'+
+    '<div class="field"><label>السعة</label><input class="g-input" id="e-sz" value="'+(e.size||'')+'"/></div>'+
+    '<div class="field"><label>الكمية</label><input class="g-input" id="e-qt" type="number" value="'+e.qty+'"/></div>'+
+    '<div class="field"><label>السعر</label><input class="g-input" id="e-pr" type="number" value="'+(e.price||'')+'"/></div>'+
+    '<div class="field"><label>الموقع</label><input class="g-input" id="e-lc" value="'+(e.location||'')+'"/></div>'+
+    '<div class="field"><label>النوع</label><select class="g-input g-select" id="e-tp"><option value="in" '+(e.type==='in'?'selected':'')+'>إضافة</option><option value="out" '+(e.type==='out'?'selected':'')+'>صرف</option></select></div>'+
+    '<div class="field"><label>ملاحظة</label><input class="g-input" id="e-nt" value="'+(e.note||'')+'"/></div>'+
+    '</div>'+
+    '<div class="modal-btns"><button class="btn btn-success" onclick="saveEdit()">حفظ ✓</button><button class="btn btn-danger" onclick="deleteEntry()">🗑 حذف</button><button class="btn btn-primary" onclick="closeEditModal()">إلغاء</button></div></div>';
+  var ov = document.getElementById('edit-overlay');
+  ov.innerHTML = html; ov.classList.add('on');
+}
+function saveEdit(){
+  DB.updateEntry(editId,{name:document.getElementById('e-nm').value,size:document.getElementById('e-sz').value,qty:parseInt(document.getElementById('e-qt').value)||1,price:document.getElementById('e-pr').value,location:document.getElementById('e-lc').value,type:document.getElementById('e-tp').value,note:document.getElementById('e-nt').value});
+  closeEditModal(); loadEntries(); tst('تم التعديل ✓','g');
+}
+function deleteEntry(){
+  confirm2('هل أنت متأكد من حذف هذا السجل؟',function(){DB.deleteEntry(editId);closeEditModal();loadEntries();tst('تم الحذف','r');});
+}
+function closeEditModal(){document.getElementById('edit-overlay').classList.remove('on');}
+
+function loadEntries() {
+  allEntries = DB.getEntries();
+  filtEntries = allEntries.slice();
+  renderTable(filtEntries);
+}
+function filterEntries(q) {
+  if (!q) { filtEntries = allEntries.slice(); }
+  else { var lq=q.toLowerCase(); filtEntries=allEntries.filter(function(e){return (e.barcode||'').toLowerCase().includes(lq)||(e.name||'').toLowerCase().includes(lq)||(e.location||'').toLowerCase().includes(lq);}); }
+  renderTable(filtEntries);
+}
+function renderTable(data) {
+  document.getElementById('tb').innerHTML = data.slice(0,50).map(function(e){
+    return '<tr><td><strong>'+e.name+'</strong>'+(e.note?'<br><span style="font-size:10px;color:var(--tx3)">'+e.note+'</span>':'')+
+      '</td><td class="td-bc">'+e.barcode+'</td>'+
+      '<td style="text-align:center;font-weight:800;font-size:15px;color:'+(e.type==='in'?'var(--gn)':'var(--rd)')+'">'+e.qty+'</td>'+
+      '<td><span class="badge '+(e.type==='in'?'badge-in':'badge-out')+'">'+(e.type==='in'?'إضافة':'صرف')+'</span></td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.location||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+e.date+'</td>'+
+      '<td><button class="btn btn-primary btn-icon" onclick="openEdit('+e.id+')" style="font-size:13px">✎</button></td></tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات بعد</td></tr>';
+}
+
+// Camera
+var camOn=false,stream=null,scanTm=null;
+async function opCam(){
+  var ov=document.getElementById('cov'),vid=document.getElementById('scv'),st=document.getElementById('cst');
+  ov.classList.add('on');camOn=true;st.className='cam-st';st.textContent='جاري تشغيل الكاميرا...';
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});vid.srcObject=stream;await vid.play();st.textContent='وجّه الكاميرا نحو الباركود';stScan(vid,st);}
+  catch(err){st.className='cam-st er';st.textContent=err.name==='NotAllowedError'?'لم يتم السماح بالكاميرا':'تعذّر فتح الكاميرا';}
+}
+function stScan(vid,st){
+  function onF(code){clCam();document.getElementById('bc').value=code;onBc(code);tst('تم مسح الباركود ✓','g');setTimeout(function(){document.getElementById('nm').focus();},300);}
+  if('BarcodeDetector' in window){
+    var det=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','code_93','qr_code','upc_a','upc_e','data_matrix','itf','pdf417']});
+    scanTm=setInterval(async function(){if(!camOn||vid.readyState<2)return;try{var r=await det.detect(vid);if(r&&r.length)onF(r[0].rawValue);}catch(e){}},300);
+    return;
+  }
+  // Manual fallback
+  st.className='cam-st er';st.textContent='اكتب الباركود أدناه ثم اضغط Enter';
+  var inp=document.createElement('input');inp.type='text';inp.placeholder='اكتب الباركود...';
+  inp.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);width:82%;padding:13px 16px;font-size:16px;font-family:Cairo,sans-serif;background:rgba(10,40,100,.88);color:#E8F4FF;border-top:2px solid rgba(220,235,255,.72);border-bottom:1px solid rgba(0,0,0,.50);border-left:1px solid rgba(180,210,255,.28);border-right:1px solid rgba(150,185,255,.16);border-radius:14px;outline:none;text-align:center;z-index:10;box-shadow:inset 0 3px 0 rgba(255,255,255,.36),0 8px 28px rgba(0,0,0,.60)';
+  inp.onkeydown=function(e){if(e.key==='Enter'&&inp.value.trim())onF(inp.value.trim());};
+  document.querySelector('.cam-body').appendChild(inp);setTimeout(function(){inp.focus();},300);
+}
+function clCam(){camOn=false;clearInterval(scanTm);scanTm=null;if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}document.getElementById('scv').srcObject=null;document.getElementById('cov').classList.remove('on');}
+
+loadEntries();
+</script>
+<!-- Edit overlay -->
+<div id="edit-overlay" class="modal-overlay"></div>
+</body>
+</html>

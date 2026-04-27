@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>الكفرات — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.tire-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px}
+.tire-card{padding:0;position:relative;overflow:hidden;transition:transform .2s;cursor:default}
+.tire-card:hover{transform:translateY(-3px)}
+.tire-top{padding:16px 18px 12px;border-bottom:1px solid rgba(180,210,255,.10);position:relative;z-index:1}
+.tire-size{font-size:22px;font-weight:900;color:#E8F4FF;letter-spacing:.5px;margin-bottom:4px;font-family:monospace}
+.tire-brand{font-size:12px;color:var(--tx2);margin-bottom:6px}
+.tire-badges{display:flex;gap:6px;flex-wrap:wrap}
+.tire-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 18px;position:relative;z-index:1}
+.t-num{text-align:center;padding:8px;border-radius:10px;background:rgba(180,210,255,.05);border:1px solid rgba(180,210,255,.08)}
+.t-num-val{font-size:20px;font-weight:900;line-height:1;margin-bottom:2px}
+.t-num-lbl{font-size:9px;color:var(--tx3);font-weight:600}
+.t-num.stock .t-num-val{color:var(--gn)}
+.t-num.out   .t-num-val{color:var(--rd)}
+.t-num.val   .t-num-val{color:var(--bl);font-size:14px}
+.tire-actions{display:flex;gap:8px;padding:0 18px 18px;position:relative;z-index:1}
+/* season badges */
+.badge-summer{background:rgba(255,208,96,.14);color:var(--yw);border:1px solid var(--ywb)}
+.badge-winter{background:rgba(77,168,255,.14);color:var(--bl);border:1px solid var(--blb)}
+.badge-allseason{background:rgba(0,245,184,.14);color:var(--gn);border:1px solid var(--gnb)}
+/* Chart */
+.chart-bar-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.chart-bar-h .bar-label{font-size:12px;color:var(--tx2);width:120px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-bar-h .bar-track{flex:1;height:20px;background:rgba(180,210,255,.08);border-radius:10px;overflow:hidden;border:1px solid rgba(180,210,255,.10)}
+.chart-bar-h .bar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,rgba(0,245,184,.80),rgba(0,200,144,.50));transition:width .5s cubic-bezier(.4,0,.2,1)}
+.chart-bar-h .bar-val{font-size:11px;font-weight:700;color:var(--tx2);width:60px;flex-shrink:0}
+/* Quick qty btns */
+.qty-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.qty-btn{font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:9px;cursor:pointer;background:rgba(180,210,255,.10);color:var(--tx2);border-top:1.5px solid rgba(220,235,255,.40);border-left:1px solid rgba(180,210,255,.16);border-right:1px solid rgba(150,185,255,.10);border-bottom:1px solid rgba(0,0,0,.26);transition:all .14s;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.qty-btn:hover{background:rgba(180,210,255,.20);color:var(--tx);transform:translateY(-1px)}
+/* Warning */
+.low-warn-card{background:linear-gradient(165deg,rgba(255,208,96,.14),rgba(255,208,96,.04));border-top:2px solid rgba(255,230,100,.52);border-left:1px solid rgba(255,208,96,.20);border-right:1px solid rgba(255,208,96,.12);border-bottom:1px solid rgba(0,0,0,.20)}
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>🔄 الكفرات</h1><p>إدارة مخزون الإطارات</p></div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-sm" onclick="exportExcel()">تصدير Excel</button>
+      <button class="btn btn-success" onclick="openAdd()">➕ إضافة مقاس</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <!-- Summary -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px" id="kpi-row"></div>
+
+    <!-- Low stock warning -->
+    <div id="low-warn" style="display:none;margin-bottom:16px"></div>
+
+    <!-- Filter row -->
+    <div class="glass glass-sm" style="padding:14px;margin-bottom:16px">
+      <div class="flex gap-10" style="flex-wrap:wrap;align-items:center">
+        <div class="search-wrap" style="flex:1;min-width:200px">
+          <span class="search-icon">🔍</span>
+          <input class="g-input" style="padding:9px 12px 9px 36px;font-size:13px" placeholder="بحث بالمقاس أو الماركة..." oninput="doFilter(this.value)"/>
+        </div>
+        <select class="g-input g-select" style="width:150px;padding:9px 12px" onchange="filterSeason(this.value)">
+          <option value="all">كل الأنواع</option>
+          <option value="summer">☀️ صيفي</option>
+          <option value="winter">❄️ شتوي</option>
+          <option value="allseason">🔄 كل التضاريس</option>
+        </select>
+        <select class="g-input g-select" style="width:150px;padding:9px 12px" onchange="sortBy(this.value)">
+          <option value="size">ترتيب: المقاس</option>
+          <option value="stock">ترتيب: الرصيد</option>
+          <option value="value">ترتيب: القيمة</option>
+          <option value="low">الأقل رصيداً أولاً</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Tires grid -->
+    <div class="tire-grid" id="tire-grid"></div>
+
+    <!-- Charts + top sizes -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-16" style="font-size:14px">📊 أكثر المقاسات استهلاكاً</div>
+        <div id="top-chart"></div>
+      </div>
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">📋 ملخص حسب النوع</div>
+        <div id="type-summary"></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="glass glass-sm" style="padding:20px">
+      <div class="flex-between mb-12">
+        <div class="fw-bold" style="font-size:14px">📋 سجل حركات الكفرات</div>
+        <div class="flex gap-8">
+          <select class="g-input g-select" style="width:140px;padding:7px 10px;font-size:12px" onchange="filterLogType(this.value)">
+            <option value="all">كل الحركات</option>
+            <option value="in">إضافة فقط</option>
+            <option value="out">صرف فقط</option>
+          </select>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>المقاس</th><th>الماركة</th><th>العملية</th><th>الكمية</th><th>الأطقم</th><th>الرصيد بعد</th><th>ملاحظة</th><th>التاريخ</th><th>المستخدم</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Tire Modal -->
+<div id="tire-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:540px">
+    <div class="modal-title" id="tire-modal-title">➕ إضافة مقاس جديد</div>
+    <div class="form-grid mb-16">
+      <div class="field">
+        <label>المقاس (مثال: 225/60R16)</label>
+        <input class="g-input" id="t-size" placeholder="225/60R16"/>
+      </div>
+      <div class="field">
+        <label>الماركة / الشركة</label>
+        <input class="g-input" id="t-brand" placeholder="مثال: ميشلان، بريدجستون"/>
+      </div>
+      <div class="field">
+        <label>الموسم / النوع</label>
+        <select class="g-input g-select" id="t-season">
+          <option value="allseason">🔄 كل التضاريس</option>
+          <option value="summer">☀️ صيفي</option>
+          <option value="winter">❄️ شتوي</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>سعر الحبة (ر.س)</label>
+        <input class="g-input" id="t-price" type="number" min="0" step="0.01" placeholder="0.00"/>
+      </div>
+      <div class="field">
+        <label>الكمية الحالية (حبة)</label>
+        <input class="g-input" id="t-stock" type="number" min="0" placeholder="0"/>
+      </div>
+      <div class="field">
+        <label>الحد الأدنى للتنبيه</label>
+        <input class="g-input" id="t-min" type="number" min="0" placeholder="مثال: 4"/>
+      </div>
+      <div class="field">
+        <label>الموقع في المستودع</label>
+        <input class="g-input" id="t-loc" placeholder="مثال: رف C2"/>
+      </div>
+      <div class="field">
+        <label>ملاحظة</label>
+        <input class="g-input" id="t-note" placeholder="..."/>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveTire()">حفظ ✓</button>
+      <button id="del-tire-btn" class="btn btn-danger" onclick="deleteTire()" style="display:none">حذف المقاس</button>
+      <button class="btn btn-primary" onclick="closeTireModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Withdraw Modal -->
+<div id="out-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:460px;border-top-color:rgba(255,77,96,.65)">
+    <div class="modal-title" style="color:var(--rd)">➖ صرف كفرات</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:800;color:#E8F4FF" id="out-size"></div>
+      <div style="font-size:12px;color:var(--tx3)" id="out-brand"></div>
+      <div style="margin-top:10px">
+        <span style="font-size:13px;color:var(--tx2)">الرصيد: </span>
+        <span style="font-size:26px;font-weight:900;color:var(--gn)" id="out-avail"></span>
+        <span style="font-size:13px;color:var(--tx3)"> حبة</span>
+      </div>
+    </div>
+    <!-- Tabs: piece / set -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="out-tabs">
+      <button onclick="setOutMode('piece')" id="tab-piece" class="btn btn-danger" style="justify-content:center">🔄 بالحبة</button>
+      <button onclick="setOutMode('set')"   id="tab-set"   class="btn btn-primary" style="justify-content:center">🚗 بالطقم (×4)</button>
+    </div>
+    <div class="field mb-12">
+      <label id="out-qty-label">عدد الحبات</label>
+      <input class="g-input" id="out-qty" type="number" min="1" step="1" placeholder="0" oninput="updateOutPreview()"/>
+      <div class="qty-btns" id="out-quick"></div>
+    </div>
+    <div id="out-preview" style="display:none;text-align:center;margin-bottom:12px;padding:10px;border-radius:12px;background:rgba(255,77,96,.08);border:1px solid rgba(255,77,96,.20)">
+      <span style="font-size:12px;color:var(--tx2)">المصروف: </span>
+      <span style="font-size:16px;font-weight:900;color:var(--rd)" id="out-total-pcs">0</span>
+      <span style="font-size:12px;color:var(--tx3)"> حبة &nbsp;·&nbsp; الرصيد بعد: </span>
+      <span style="font-size:16px;font-weight:900" id="out-after">0</span>
+    </div>
+    <div class="field mb-16">
+      <label>ملاحظة / رقم السيارة</label>
+      <input class="g-input" id="out-note" placeholder="مثال: سيارة رقم 1234 · تويوتا كامري"/>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="saveOut()" style="flex:1;justify-content:center">➖ تسجيل الصرف</button>
+      <button class="btn btn-primary" onclick="document.getElementById('out-modal').classList.remove('on')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add stock Modal -->
+<div id="in-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:420px;border-top-color:rgba(0,245,184,.65)">
+    <div class="modal-title" style="color:var(--gn)">➕ إضافة كفرات للمخزون</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:800;color:#E8F4FF" id="in-size"></div>
+      <div style="font-size:12px;color:var(--tx3);margin-top:4px">الرصيد الحالي: <strong id="in-avail" style="color:var(--gn)"></strong> حبة</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="field">
+        <label>عدد الحبات</label>
+        <input class="g-input" id="in-qty" type="number" min="1" step="1" placeholder="0"/>
+        <div class="qty-btns" style="margin-top:8px">
+          <button class="qty-btn" onclick="document.getElementById('in-qty').value=4">طقم (4)</button>
+          <button class="qty-btn" onclick="document.getElementById('in-qty').value=8">طقمين (8)</button>
+          <button class="qty-btn" onclick="document.getElementById('in-qty').value=20">20</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>سعر الحبة (ر.س)</label>
+        <input class="g-input" id="in-price" type="number" min="0" step="0.01" placeholder="0.00"/>
+      </div>
+    </div>
+    <div class="field mb-16">
+      <label>ملاحظة / اسم المورد</label>
+      <input class="g-input" id="in-note" placeholder="مثال: شحنة من مورد X"/>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveIn()" style="flex:1;justify-content:center">➕ إضافة ✓</button>
+      <button class="btn btn-primary" onclick="document.getElementById('in-modal').classList.remove('on')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('tires');
+var session = DB.requireAuth();
+
+var TIRES_KEY = 'wh_tires';
+var TLOG_KEY  = 'wh_tire_log';
+
+function getTires() { return DB.get(TIRES_KEY) || []; }
+function setTires(a){ DB.set(TIRES_KEY, a); }
+function getTLog()  { return DB.get(TLOG_KEY)  || []; }
+function addTLog(e) {
+  var log = getTLog();
+  e.id   = Date.now() + Math.random();
+  e.date = new Date().toLocaleDateString('ar-SA-u-nu-latn')+'  '+new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
+  e.user = session.name;
+  log.unshift(e);
+  if(log.length>2000) log=log.slice(0,2000);
+  DB.set(TLOG_KEY, log);
+}
+
+var seasonCfg = {
+  summer:    {label:'صيفي',         icon:'☀️', cls:'badge-summer'},
+  winter:    {label:'شتوي',         icon:'❄️', cls:'badge-winter'},
+  allseason: {label:'كل التضاريس', icon:'🔄', cls:'badge-allseason'},
+};
+
+/* ── State ── */
+var curSearch='', curSeason='all', curSort='size', curLogType='all';
+var editId=null, outId=null, inId=null, outMode='piece';
+
+/* ── Render ── */
+function render() {
+  var tires = getTires();
+  var log   = getTLog();
+
+  /* KPIs */
+  var totalPcs  = tires.reduce(function(s,t){return s+t.stock;},0);
+  var totalSets = Math.floor(totalPcs/4);
+  var totalVal  = tires.reduce(function(s,t){return s+(t.stock*(parseFloat(t.price)||0));},0);
+  var lowCount  = tires.filter(function(t){return t.min>0&&t.stock<=t.min;}).length;
+  var totalOut  = log.filter(function(l){return l.op==='out';}).reduce(function(s,l){return s+l.qty;},0);
+  var totalSizes= tires.length;
+
+  document.getElementById('kpi-row').innerHTML = [
+    {icon:'🔄',val:totalSizes,         lbl:'عدد المقاسات',    cls:''},
+    {icon:'🔢',val:fmtNum(totalPcs),   lbl:'إجمالي الحبات',   cls:'kpi-gn'},
+    {icon:'🚗',val:fmtNum(totalSets),  lbl:'إجمالي الأطقم',   cls:'kpi-bl'},
+    {icon:'💰',val:fmtMoney(totalVal), lbl:'قيمة المخزون',    cls:'kpi-bl'},
+    {icon:'📤',val:fmtNum(totalOut),   lbl:'إجمالي المصروف',  cls:'kpi-rd'},
+    {icon:'⚠️',val:lowCount,          lbl:'تحت الحد الأدنى', cls:lowCount>0?'kpi-yw':''},
+  ].map(function(k){
+    return '<div class="glass glass-sm kpi-card '+k.cls+'"><span class="kpi-icon">'+k.icon+'</span><div class="kpi-val">'+k.val+'</div><div class="kpi-lbl">'+k.lbl+'</div></div>';
+  }).join('');
+
+  /* Low stock warning */
+  var lowTires = tires.filter(function(t){return t.min>0&&t.stock<=t.min;});
+  var lw = document.getElementById('low-warn');
+  lw.style.display = lowTires.length ? 'block' : 'none';
+  lw.innerHTML = lowTires.length ?
+    '<div class="glass glass-sm low-warn-card" style="padding:14px"><div class="fw-bold text-yw mb-8" style="font-size:13px">⚠️ كفرات وصلت للحد الأدنى ('+lowTires.length+')</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    lowTires.map(function(t){return '<span class="tag text-yw">'+t.size+(t.brand?' · '+t.brand:'')+': '+t.stock+' حبة</span>';}).join('')+'</div></div>' : '';
+
+  /* Filter tires */
+  var filtered = tires.filter(function(t){
+    var q = curSearch.toLowerCase();
+    if(q && !(t.size||'').toLowerCase().includes(q) && !(t.brand||'').toLowerCase().includes(q)) return false;
+    if(curSeason!=='all' && t.season!==curSeason) return false;
+    return true;
+  });
+  filtered.sort(function(a,b){
+    if(curSort==='stock') return a.stock-b.stock;
+    if(curSort==='value') return (b.stock*(parseFloat(b.price)||0))-(a.stock*(parseFloat(a.price)||0));
+    if(curSort==='low')   return a.stock-b.stock;
+    return (a.size||'').localeCompare(b.size||'');
+  });
+
+  /* Tire cards */
+  document.getElementById('tire-grid').innerHTML = filtered.length ? filtered.map(function(t){
+    var sc   = seasonCfg[t.season]||seasonCfg.allseason;
+    var sets = Math.floor(t.stock/4);
+    var val  = t.stock*(parseFloat(t.price)||0);
+    var isLow = t.min>0 && t.stock<=t.min;
+    var topColor = isLow?'rgba(255,208,96,.65)':'rgba(220,235,255,.68)';
+    return '<div class="glass glass-sm tire-card" style="border-top-color:'+topColor+'">'+
+      '<div class="tire-top">'+
+        (isLow?'<div style="font-size:11px;font-weight:700;color:var(--yw);margin-bottom:5px">⚠️ رصيد منخفض</div>':'')+
+        '<div class="tire-size">'+t.size+'</div>'+
+        '<div class="tire-brand">'+(t.brand||'—')+(t.location?' · 📍'+t.location:'')+'</div>'+
+        '<div class="tire-badges"><span class="badge '+sc.cls+'">'+sc.icon+' '+sc.label+'</span>'+
+        (t.price?'<span class="badge badge-viewer">'+fmtMoney(t.price)+'/حبة</span>':'')+'</div>'+
+      '</div>'+
+      '<div class="tire-nums">'+
+        '<div class="t-num stock"><div class="t-num-val">'+fmtNum(t.stock)+'</div><div class="t-num-lbl">حبة متاحة</div></div>'+
+        '<div class="t-num out">  <div class="t-num-val">'+fmtNum(sets)+'</div>  <div class="t-num-lbl">طقم كامل</div></div>'+
+        '<div class="t-num val">  <div class="t-num-val">'+fmtMoney(val)+'</div><div class="t-num-lbl">القيمة</div></div>'+
+      '</div>'+
+      (t.min?'<div style="padding:0 18px 8px;font-size:11px;color:'+(isLow?'var(--yw)':'var(--tx3)')+'">الحد الأدنى: '+t.min+' حبة</div>':'')+
+      '<div class="tire-actions">'+
+        '<button class="btn btn-danger btn-sm" onclick="openOut('+t.id+')" style="flex:1;justify-content:center">➖ صرف</button>'+
+        '<button class="btn btn-success btn-sm" onclick="openIn('+t.id+')" style="flex:1;justify-content:center">➕ إضافة</button>'+
+        '<button class="btn btn-primary btn-sm btn-icon" onclick="openEdit('+t.id+')" title="تعديل">✎</button>'+
+      '</div>'+
+    '</div>';
+  }).join('') :
+    '<div class="empty-state" style="grid-column:span 3"><div class="empty-ic">🔄</div><p>لا توجد كفرات بعد</p><span>اضغط "إضافة مقاس" للبدء</span></div>';
+
+  /* Top chart */
+  var sizeMap={};
+  log.filter(function(l){return l.op==='out';}).forEach(function(l){
+    if(!sizeMap[l.size]) sizeMap[l.size]={size:l.size,brand:l.brand||'',qty:0};
+    sizeMap[l.size].qty += l.qty;
+  });
+  var topSizes = Object.values(sizeMap).sort(function(a,b){return b.qty-a.qty;}).slice(0,8);
+  var maxQ = topSizes.length ? topSizes[0].qty : 1;
+  document.getElementById('top-chart').innerHTML = topSizes.length ? topSizes.map(function(s){
+    var pct = Math.round(s.qty/maxQ*100);
+    return '<div class="chart-bar-h">'+
+      '<div class="bar-label" title="'+s.size+(s.brand?' · '+s.brand:'')+'">'+s.size+'</div>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="bar-val">'+fmtNum(s.qty)+' حبة</div>'+
+    '</div>';
+  }).join('') : '<div class="empty-state" style="padding:16px"><p>لا توجد بيانات صرف بعد</p></div>';
+
+  /* Type summary */
+  var types = ['allseason','summer','winter'];
+  document.getElementById('type-summary').innerHTML = types.map(function(type){
+    var sc = seasonCfg[type];
+    var items = tires.filter(function(t){return t.season===type;});
+    var pcs = items.reduce(function(s,t){return s+t.stock;},0);
+    var val = items.reduce(function(s,t){return s+(t.stock*(parseFloat(t.price)||0));},0);
+    return '<div class="flex-between" style="padding:10px 0;border-bottom:1px solid rgba(180,210,255,.07)">'+
+      '<div class="flex gap-8 align-center"><span class="badge '+sc.cls+'">'+sc.icon+' '+sc.label+'</span><span style="font-size:12px;color:var(--tx3)">'+items.length+' مقاس</span></div>'+
+      '<div style="text-align:left"><div style="font-size:14px;font-weight:700;color:var(--gn)">'+fmtNum(pcs)+' حبة</div><div style="font-size:10px;color:var(--tx3)">'+fmtMoney(val)+'</div></div>'+
+    '</div>';
+  }).join('');
+
+  /* Log */
+  renderLog();
+  updateNavBadge();
+}
+
+function doFilter(q){curSearch=q; render();}
+function filterSeason(s){curSeason=s; render();}
+function sortBy(s){curSort=s; render();}
+function filterLogType(t){curLogType=t; renderLog();}
+
+function renderLog(){
+  var log = getTLog();
+  if(curLogType!=='all') log=log.filter(function(l){return l.op===curLogType;});
+  document.getElementById('log-body').innerHTML = log.slice(0,100).map(function(l){
+    var opBadge = l.op==='out'?'<span class="badge badge-out">➖ صرف</span>':'<span class="badge badge-in">➕ إضافة</span>';
+    var sets = l.qty>=4 ? ' ('+Math.floor(l.qty/4)+' طقم)' : '';
+    return '<tr>'+
+      '<td><strong style="font-family:monospace">'+l.size+'</strong></td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(l.brand||'—')+'</td>'+
+      '<td>'+opBadge+'</td>'+
+      '<td style="text-align:center;font-weight:800;font-size:15px;color:'+(l.op==='out'?'var(--rd)':'var(--gn)')+'">'+
+        (l.op==='out'?'−':'+')+fmtNum(l.qty)+'</td>'+
+      '<td style="text-align:center;font-size:11px;color:var(--tx3)">'+(l.qty>=4?Math.floor(l.qty/4)+' طقم':'—')+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:var(--bl)">'+fmtNum(l.after)+' حبة</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(l.note||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+l.date+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+l.user+'</td>'+
+    '</tr>';
+  }).join('')||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات بعد</td></tr>';
+}
+
+/* ── Add/Edit Tire ── */
+function openAdd(){
+  editId=null;
+  document.getElementById('tire-modal-title').textContent='➕ إضافة مقاس جديد';
+  ['t-size','t-brand','t-loc','t-note'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('t-season').value='allseason';
+  document.getElementById('t-price').value='';
+  document.getElementById('t-stock').value='';
+  document.getElementById('t-min').value='';
+  document.getElementById('del-tire-btn').style.display='none';
+  document.getElementById('tire-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('t-size').focus();},200);
+}
+function openEdit(id){
+  var t=getTires().find(function(x){return x.id===id;});
+  if(!t)return;
+  editId=id;
+  document.getElementById('tire-modal-title').textContent='✏️ تعديل المقاس';
+  document.getElementById('t-size').value  =t.size||'';
+  document.getElementById('t-brand').value =t.brand||'';
+  document.getElementById('t-season').value=t.season||'allseason';
+  document.getElementById('t-price').value =t.price||'';
+  document.getElementById('t-stock').value =t.stock||0;
+  document.getElementById('t-min').value   =t.min||0;
+  document.getElementById('t-loc').value   =t.location||'';
+  document.getElementById('t-note').value  =t.note||'';
+  document.getElementById('del-tire-btn').style.display='';
+  document.getElementById('tire-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('t-size').focus();},200);
+}
+function saveTire(){
+  var size  =document.getElementById('t-size').value.trim();
+  var brand =document.getElementById('t-brand').value.trim();
+  var season=document.getElementById('t-season').value;
+  var price =parseFloat(document.getElementById('t-price').value)||0;
+  var stock =parseInt(document.getElementById('t-stock').value)||0;
+  var min   =parseInt(document.getElementById('t-min').value)||0;
+  var loc   =document.getElementById('t-loc').value.trim();
+  var note  =document.getElementById('t-note').value.trim();
+  if(!size){tst('أدخل مقاس الكفر','r');return;}
+  var tires=getTires();
+  if(editId){
+    var idx=tires.findIndex(function(t){return t.id===editId;});
+    if(idx>=0)Object.assign(tires[idx],{size,brand,season,price,stock,min,location:loc,note});
+    tst('تم التعديل ✓','g');
+  } else {
+    var dup=tires.find(function(t){return t.size===size&&t.brand===brand;});
+    if(dup){tst('هذا المقاس موجود مسبقاً','r');return;}
+    var newT={id:Date.now(),size,brand,season,price,stock,min,location:loc,note};
+    tires.push(newT);
+    if(stock>0) addTLog({tireId:newT.id,size,brand,op:'in',qty:stock,after:stock,note:'إضافة مقاس جديد'});
+    tst('تمت الإضافة ✓','g');
+  }
+  setTires(tires);closeTireModal();render();
+}
+function deleteTire(){
+  if(!editId)return;
+  confirm2('هل أنت متأكد من حذف هذا المقاس وكل سجلاته؟',function(){
+    setTires(getTires().filter(function(t){return t.id!==editId;}));
+    closeTireModal();render();tst('تم الحذف','r');
+  });
+}
+function closeTireModal(){document.getElementById('tire-modal').classList.remove('on');editId=null;}
+
+/* ── Withdraw ── */
+function openOut(id){
+  var t=getTires().find(function(x){return x.id===id;});
+  if(!t)return;
+  outId=id;outMode='piece';
+  document.getElementById('out-size').textContent =t.size;
+  document.getElementById('out-brand').textContent=t.brand||'';
+  document.getElementById('out-avail').textContent=fmtNum(t.stock);
+  document.getElementById('out-qty').value='';
+  document.getElementById('out-note').value='';
+  document.getElementById('out-preview').style.display='none';
+  setOutMode('piece');
+  // Quick btns
+  var qtys = t.stock>=20?[1,2,4,8,12]:[1,2,4];
+  document.getElementById('out-quick').innerHTML=qtys.map(function(q){
+    return '<button class="qty-btn" onclick="setOutQty('+q+')">'+q+(q%4===0?' ('+q/4+' طقم)':'')+'</button>';
+  }).join('');
+  document.getElementById('out-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('out-qty').focus();},200);
+}
+function setOutMode(m){
+  outMode=m;
+  document.getElementById('tab-piece').className='btn btn-'+(m==='piece'?'danger':'primary')+' btn-sm';
+  document.getElementById('tab-set').className  ='btn btn-'+(m==='set'  ?'danger':'primary')+' btn-sm';
+  document.getElementById('out-qty-label').textContent = m==='piece'?'عدد الحبات':'عدد الأطقم (×4 حبات)';
+  document.getElementById('out-qty').value='';
+  document.getElementById('out-preview').style.display='none';
+  document.getElementById('out-qty').placeholder= m==='piece'?'عدد الحبات':'عدد الأطقم';
+}
+function setOutQty(v){document.getElementById('out-qty').value=v;updateOutPreview();}
+function updateOutPreview(){
+  var t=getTires().find(function(x){return x.id===outId;});
+  if(!t)return;
+  var q=parseInt(document.getElementById('out-qty').value)||0;
+  var pcs=outMode==='set'?q*4:q;
+  var after=t.stock-pcs;
+  var prev=document.getElementById('out-preview');
+  if(pcs>0){
+    prev.style.display='block';
+    document.getElementById('out-total-pcs').textContent=fmtNum(pcs)+' حبة'+(pcs>=4?' ('+Math.floor(pcs/4)+' طقم)':'');
+    var afterEl=document.getElementById('out-after');
+    afterEl.textContent=fmtNum(Math.max(0,after));
+    afterEl.style.color=after<0?'var(--rd)':after<=(t.min||0)?'var(--yw)':'var(--gn)';
+  } else {prev.style.display='none';}
+}
+function saveOut(){
+  var q   =parseInt(document.getElementById('out-qty').value)||0;
+  var pcs =outMode==='set'?q*4:q;
+  var note=document.getElementById('out-note').value.trim();
+  if(!pcs||pcs<=0){tst('أدخل الكمية','r');return;}
+  var tires=getTires();
+  var idx=tires.findIndex(function(t){return t.id===outId;});
+  if(idx<0)return;
+  var t=tires[idx];
+  if(pcs>t.stock){tst('الكمية ('+fmtNum(pcs)+' حبة) أكبر من الرصيد ('+fmtNum(t.stock)+' حبة)','r');return;}
+  t.stock-=pcs;
+  setTires(tires);
+  addTLog({tireId:t.id,size:t.size,brand:t.brand,op:'out',qty:pcs,sets:Math.floor(pcs/4),after:t.stock,note:note});
+  document.getElementById('out-modal').classList.remove('on');
+  outId=null;render();tst('تم تسجيل الصرف: '+fmtNum(pcs)+' حبة ✓','r');
+}
+
+/* ── Add Stock ── */
+function openIn(id){
+  var t=getTires().find(function(x){return x.id===id;});
+  if(!t)return;
+  inId=id;
+  document.getElementById('in-size').textContent=t.size+(t.brand?' · '+t.brand:'');
+  document.getElementById('in-avail').textContent=fmtNum(t.stock);
+  document.getElementById('in-qty').value='';
+  document.getElementById('in-price').value=t.price||'';
+  document.getElementById('in-note').value='';
+  document.getElementById('in-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('in-qty').focus();},200);
+}
+function saveIn(){
+  var qty  =parseInt(document.getElementById('in-qty').value)||0;
+  var price=parseFloat(document.getElementById('in-price').value)||0;
+  var note =document.getElementById('in-note').value.trim();
+  if(!qty||qty<=0){tst('أدخل الكمية','r');return;}
+  var tires=getTires();
+  var idx=tires.findIndex(function(t){return t.id===inId;});
+  if(idx<0)return;
+  var t=tires[idx];
+  t.stock+=qty;
+  if(price)t.price=price;
+  setTires(tires);
+  addTLog({tireId:t.id,size:t.size,brand:t.brand,op:'in',qty:qty,after:t.stock,note:note||'إضافة للمخزون'});
+  document.getElementById('in-modal').classList.remove('on');
+  inId=null;render();tst('تمت الإضافة: '+fmtNum(qty)+' حبة ✓','g');
+}
+
+/* ── Export ── */
+function exportExcel(){
+  if(typeof XLSX==='undefined'){tst('مكتبة Excel غير متوفرة','r');return;}
+  var tires=getTires();var log=getTLog();
+  var sc=seasonCfg;
+  var rows1=[['المقاس','الماركة','النوع','الرصيد (حبة)','الأطقم','سعر الحبة','القيمة','الحد الأدنى','الموقع','الحالة']];
+  tires.forEach(function(t){
+    var tc=sc[t.season]||sc.allseason;
+    rows1.push([t.size,t.brand||'',tc.label,t.stock,Math.floor(t.stock/4),t.price||0,t.stock*(parseFloat(t.price)||0),t.min||0,t.location||'',t.stock<=(t.min||0)&&t.min>0?'منخفض':'جيد']);
+  });
+  var rows2=[['المقاس','الماركة','العملية','الكمية (حبة)','الأطقم','الرصيد بعد','ملاحظة','التاريخ','المستخدم']];
+  log.forEach(function(l){
+    rows2.push([l.size,l.brand||'',l.op==='out'?'صرف':'إضافة',l.qty,Math.floor(l.qty/4),l.after,l.note||'',l.date,l.user]);
+  });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows1),'الكفرات');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows2),'سجل الحركات');
+  var d=new Date();
+  XLSX.writeFile(wb,'كفرات_'+d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()+'.xlsx');
+  tst('تم تصدير الملف ✓','g');
+}
+
+render();
+</script>
+</body>
+</html>

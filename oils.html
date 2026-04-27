@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>براميل الزيت — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+<style>
+/* ── Oil barrel card ── */
+.barrel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.barrel-card {
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s;
+}
+.barrel-card:hover { transform: translateY(-3px) }
+.barrel-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(180,210,255,.10);
+  position: relative; z-index: 1;
+}
+.barrel-type {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
+}
+.barrel-name { font-size: 15px; font-weight: 800; color: #E8F4FF; margin-bottom: 2px }
+.barrel-meta { font-size: 11px; color: var(--tx3) }
+
+/* Progress bar */
+.barrel-level {
+  padding: 12px 18px;
+  position: relative; z-index: 1;
+}
+.level-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--tx3); margin-bottom: 6px;
+}
+.level-bar-bg {
+  height: 14px; border-radius: 7px;
+  background: rgba(180,210,255,.08);
+  border: 1px solid rgba(180,210,255,.12);
+  overflow: hidden; position: relative;
+}
+.level-bar-fill {
+  height: 100%; border-radius: 7px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+  position: relative;
+}
+.level-bar-fill::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+.level-full   { background: linear-gradient(90deg, #00F5B8, #00C890) }
+.level-high   { background: linear-gradient(90deg, #00C890, #4DA8FF) }
+.level-mid    { background: linear-gradient(90deg, #FFD060, #FF9020) }
+.level-low    { background: linear-gradient(90deg, #FF4D60, #CC1E30) }
+.level-empty  { background: rgba(180,210,255,.12) }
+
+.barrel-nums {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; padding: 0 18px 14px;
+  position: relative; z-index: 1;
+}
+.b-num { text-align: center; padding: 8px; border-radius: 10px;
+  background: rgba(180,210,255,.05); border: 1px solid rgba(180,210,255,.08) }
+.b-num-val { font-size: 18px; font-weight: 900; line-height: 1; margin-bottom: 2px }
+.b-num-lbl { font-size: 9px; color: var(--tx3); font-weight: 600 }
+.b-num.tot .b-num-val { color: var(--bl) }
+.b-num.rem .b-num-val { color: var(--gn) }
+.b-num.out .b-num-val { color: var(--rd) }
+
+.barrel-actions {
+  display: flex; gap: 8px; padding: 0 18px 18px;
+  position: relative; z-index: 1;
+}
+
+/* Type colors */
+.type-motor    { background: rgba(0,245,184,.12); color: var(--gn); border: 1px solid var(--gnb) }
+.type-gear     { background: rgba(77,168,255,.12); color: var(--bl); border: 1px solid var(--blb) }
+.type-grease   { background: rgba(255,208,96,.12); color: var(--yw); border: 1px solid var(--ywb) }
+.type-hydraulic{ background: rgba(180,100,255,.12); color: #C580FF; border: 1px solid rgba(180,100,255,.35) }
+.type-other    { background: rgba(180,210,255,.10); color: var(--tx2); border: 1px solid rgba(180,210,255,.20) }
+
+/* Draw modal */
+.draw-modal-body { padding: 20px }
+.liter-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
+.liter-btn {
+  font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 8px 16px; border-radius: 10px; cursor: pointer;
+  background: rgba(180,210,255,.10); color: var(--tx2);
+  border-top: 1.5px solid rgba(220,235,255,.42);
+  border-left: 1px solid rgba(180,210,255,.18);
+  border-right: 1px solid rgba(150,185,255,.10);
+  border-bottom: 1px solid rgba(0,0,0,.28);
+  transition: all .15s;
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.18);
+}
+.liter-btn:hover { background: rgba(180,210,255,.20); color: var(--tx); transform: translateY(-1px) }
+
+/* Log table */
+.log-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700 }
+.log-add  { background:rgba(0,245,184,.12);color:var(--gn);border:1px solid var(--gnb) }
+.log-draw { background:rgba(255,77,96,.12); color:var(--rd);border:1px solid var(--rdb) }
+
+/* Warning card */
+.warn-card {
+  background: linear-gradient(165deg,rgba(255,208,96,.16),rgba(255,208,96,.04));
+  border-top: 2px solid rgba(255,230,100,.52);
+  border-left: 1px solid rgba(255,208,96,.22);
+  border-right: 1px solid rgba(255,208,96,.12);
+  border-bottom: 1px solid rgba(0,0,0,.22);
+}
+
+/* Summary bar */
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.sum-item { padding: 14px 16px; text-align: center }
+.sum-val { font-size: 24px; font-weight: 900; line-height: 1; margin-bottom: 3px }
+.sum-lbl { font-size: 10px; color: var(--tx3); font-weight: 600 }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>🛢️ براميل الزيت</h1>
+      <p>إدارة مخزون الزيوت والشحوم</p>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-sm" onclick="exportExcel()">تصدير Excel</button>
+      <button class="btn btn-success" onclick="openAddBarrel()">➕ إضافة برميل</button>
+    </div>
+  </div>
+  <div class="page-body">
+
+    <!-- Summary -->
+    <div class="summary-bar" id="summary-bar"></div>
+
+    <!-- Low stock warning -->
+    <div id="low-warn" style="display:none;margin-bottom:16px"></div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-8 mb-16" id="type-tabs" style="flex-wrap:wrap"></div>
+
+    <!-- Barrels grid -->
+    <div class="barrel-grid" id="barrels-grid"></div>
+
+    <!-- Transactions log -->
+    <div class="glass glass-sm" style="padding:20px">
+      <div class="flex-between mb-12">
+        <div class="fw-bold" style="font-size:14px">📋 سجل الحركات</div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="g-input" style="padding:8px 12px 8px 36px;font-size:13px;width:200px"
+            placeholder="بحث في السجل..." oninput="filterLog(this.value)"/>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>البرميل</th><th>النوع</th><th>العملية</th>
+            <th>الكمية (لتر)</th><th>الرصيد بعد</th><th>ملاحظة</th>
+            <th>التاريخ</th><th>المستخدم</th>
+          </tr></thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Barrel Modal -->
+<div id="barrel-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:520px">
+    <div class="modal-title" id="barrel-modal-title">➕ إضافة برميل زيت</div>
+    <div class="form-grid mb-16">
+      <div class="field" style="grid-column:span 2">
+        <label>اسم المنتج / نوع الزيت</label>
+        <input class="g-input" id="b-name" placeholder="مثال: زيت موبيل 5W-30" onkeydown="if(event.key==='Enter')document.getElementById('b-type').focus()"/>
+      </div>
+      <div class="field">
+        <label>التصنيف</label>
+        <select class="g-input g-select" id="b-type">
+          <option value="motor">🔧 زيت محرك</option>
+          <option value="gear">⚙️ زيت ناقل حركة</option>
+          <option value="grease">🟡 شحوم</option>
+          <option value="hydraulic">🔵 زيت هيدروليك</option>
+          <option value="other">📦 أخرى</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>وحدة الصرف</label>
+        <select class="g-input g-select" id="b-unit">
+          <option value="لتر">لتر</option>
+          <option value="كيلو">كيلو</option>
+          <option value="كارتون">كارتون</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>سعة البرميل الكاملة (لتر)</label>
+        <input class="g-input" id="b-capacity" type="number" min="1" placeholder="مثال: 208" onkeydown="if(event.key==='Enter')document.getElementById('b-current').focus()"/>
+      </div>
+      <div class="field">
+        <label>الكمية الحالية (لتر)</label>
+        <input class="g-input" id="b-current" type="number" min="0" placeholder="مثال: 208"/>
+      </div>
+      <div class="field">
+        <label>سعر اللتر (ر.س)</label>
+        <input class="g-input" id="b-price" type="number" min="0" step="0.01" placeholder="0.00"/>
+      </div>
+      <div class="field">
+        <label>حد التنبيه الأدنى (لتر)</label>
+        <input class="g-input" id="b-min" type="number" min="0" placeholder="مثال: 20"/>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>الموقع في المستودع</label>
+        <input class="g-input" id="b-loc" placeholder="مثال: ركن الزيوت - رف B"/>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>ملاحظة</label>
+        <input class="g-input" id="b-note" placeholder="..."/>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveBarrel()">حفظ ✓</button>
+      <button id="del-barrel-btn" class="btn btn-danger" onclick="deleteBarrel()" style="display:none">حذف البرميل</button>
+      <button class="btn btn-primary" onclick="closeBarrelModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Draw (Withdraw) Modal -->
+<div id="draw-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:460px">
+    <div class="modal-title">➖ صرف زيت</div>
+    <div class="draw-modal-body">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:800;color:#E8F4FF" id="draw-barrel-name"></div>
+        <div style="font-size:12px;color:var(--tx3)" id="draw-barrel-type"></div>
+        <div style="margin-top:10px">
+          <span style="font-size:13px;color:var(--tx2)">الرصيد المتاح: </span>
+          <span style="font-size:24px;font-weight:900;color:var(--gn)" id="draw-avail"></span>
+          <span style="font-size:13px;color:var(--tx3)"> لتر</span>
+        </div>
+      </div>
+      <div class="field mb-12">
+        <label>الكمية المصروفة (لتر)</label>
+        <input class="g-input" id="draw-qty" type="number" min="0.1" step="0.1" placeholder="0.0"
+               oninput="updateDrawPreview(this.value)"
+               onkeydown="if(event.key==='Enter')document.getElementById('draw-note').focus()"/>
+        <!-- Quick amounts -->
+        <div class="liter-btns" id="quick-btns"></div>
+      </div>
+      <!-- Preview -->
+      <div id="draw-preview" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:12px;background:rgba(0,245,184,.08);border:1px solid rgba(0,245,184,.20);text-align:center">
+        <span style="font-size:12px;color:var(--tx2)">الرصيد بعد الصرف: </span>
+        <span style="font-size:18px;font-weight:900" id="draw-after">0</span>
+        <span style="font-size:12px;color:var(--tx3)"> لتر</span>
+      </div>
+      <div class="field mb-16">
+        <label>ملاحظة / سبب الصرف</label>
+        <input class="g-input" id="draw-note" placeholder="مثال: تغيير زيت سيارة رقم 1234"
+               onkeydown="if(event.key==='Enter')saveDraw()"/>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-danger" onclick="saveDraw()" style="flex:1;justify-content:center">➖ تسجيل الصرف</button>
+        <button class="btn btn-primary" onclick="closeDrawModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Refill Modal -->
+<div id="refill-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card" style="max-width:420px">
+    <div class="modal-title">➕ إعادة تعبئة برميل</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:800;color:#E8F4FF" id="refill-barrel-name"></div>
+      <div style="margin-top:8px;font-size:13px;color:var(--tx2)">
+        الرصيد الحالي: <strong id="refill-avail" style="color:var(--gn)"></strong> لتر
+        &nbsp;·&nbsp;
+        السعة الكاملة: <strong id="refill-cap" style="color:var(--bl)"></strong> لتر
+      </div>
+    </div>
+    <div class="form-grid mb-16">
+      <div class="field">
+        <label>كمية التعبئة (لتر)</label>
+        <input class="g-input" id="refill-qty" type="number" min="1" placeholder="عدد اللترات"/>
+      </div>
+      <div class="field">
+        <label>تعبئة كاملة</label>
+        <button class="btn btn-primary" onclick="fillToFull()" style="width:100%;justify-content:center;margin-top:21px">ملء كامل</button>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>ملاحظة</label>
+        <input class="g-input" id="refill-note" placeholder="مثال: شحنة جديدة من المورد X"/>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveRefill()">حفظ ✓</button>
+      <button class="btn btn-primary" onclick="document.getElementById('refill-modal').classList.remove('on')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('oils');
+var session = DB.requireAuth();
+
+/* ── Oil Storage Keys ── */
+var OIL_BARRELS = 'wh_oil_barrels';
+var OIL_LOG     = 'wh_oil_log';
+
+function getBarrels() { return DB.get(OIL_BARRELS) || []; }
+function setBarrels(arr) { DB.set(OIL_BARRELS, arr); }
+function getLog()    { return DB.get(OIL_LOG)     || []; }
+function addLog(entry) {
+  var log = getLog();
+  entry.id   = Date.now() + Math.random();
+  entry.date = new Date().toLocaleDateString('ar-SA-u-nu-latn') + '  ' +
+               new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
+  entry.user = session.name;
+  log.unshift(entry);
+  if (log.length > 2000) log = log.slice(0,2000);
+  DB.set(OIL_LOG, log);
+}
+
+/* ── Type config ── */
+var typeConfig = {
+  motor:     { label:'زيت محرك',       icon:'🔧', cls:'type-motor'     },
+  gear:      { label:'زيت ناقل حركة',  icon:'⚙️', cls:'type-gear'      },
+  grease:    { label:'شحوم',           icon:'🟡', cls:'type-grease'    },
+  hydraulic: { label:'زيت هيدروليك',   icon:'🔵', cls:'type-hydraulic' },
+  other:     { label:'أخرى',           icon:'📦', cls:'type-other'     },
+};
+
+function levelClass(pct) {
+  if (pct >= 70) return 'level-full';
+  if (pct >= 40) return 'level-high';
+  if (pct >= 20) return 'level-mid';
+  if (pct >  0)  return 'level-low';
+  return 'level-empty';
+}
+
+/* ── RENDER ── */
+var curTypeFilter = 'all', allLog = [], filtLog = [];
+
+function render() {
+  var barrels = getBarrels();
+  allLog = getLog(); filtLog = allLog.slice();
+
+  // Summary
+  var totalLiters  = barrels.reduce(function(s,b){return s + b.current;}, 0);
+  var totalCap     = barrels.reduce(function(s,b){return s + b.capacity;}, 0);
+  var totalVal     = barrels.reduce(function(s,b){return s + (b.current * (parseFloat(b.price)||0));}, 0);
+  var lowCount     = barrels.filter(function(b){ return b.min > 0 && b.current <= b.min; }).length;
+  var totalDrawn   = allLog.filter(function(l){return l.op==='draw';}).reduce(function(s,l){return s+l.qty;},0);
+
+  document.getElementById('summary-bar').innerHTML = [
+    {icon:'🛢️', val: barrels.length,            lbl:'عدد البراميل',      cls:''},
+    {icon:'💧', val: fmtNum(totalLiters)+' لتر', lbl:'إجمالي المتاح',     cls:'kpi-gn'},
+    {icon:'📦', val: fmtNum(totalCap)+' لتر',    lbl:'إجمالي السعة',      cls:'kpi-bl'},
+    {icon:'💰', val: fmtMoney(totalVal),          lbl:'قيمة المخزون',      cls:'kpi-bl'},
+    {icon:'📤', val: fmtNum(totalDrawn)+' لتر',  lbl:'إجمالي المصروف',    cls:'kpi-rd'},
+    {icon:'⚠️', val: lowCount,                   lbl:'تحت الحد الأدنى',   cls: lowCount>0?'kpi-yw':''},
+  ].map(function(s){
+    return '<div class="glass glass-sm sum-item '+s.cls+'"><div class="sum-val">'+s.icon+' '+s.val+'</div><div class="sum-lbl">'+s.lbl+'</div></div>';
+  }).join('');
+
+  // Low stock warning
+  var lowBarrels = barrels.filter(function(b){ return b.min > 0 && b.current <= b.min; });
+  document.getElementById('low-warn').style.display = lowBarrels.length ? 'block' : 'none';
+  document.getElementById('low-warn').innerHTML = lowBarrels.length ? '<div class="glass glass-sm warn-card" style="padding:16px;margin-bottom:0"><div class="fw-bold text-yw mb-8" style="font-size:14px">⚠️ براميل وصلت للحد الأدنى ('+lowBarrels.length+')</div><div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    lowBarrels.map(function(b){return '<span class="tag text-yw">🛢️ '+b.name+': '+fmtNum(b.current)+' لتر</span>';}).join('')+'</div></div>' : '';
+
+  // Type filter tabs
+  var types = ['all'].concat(Object.keys(typeConfig));
+  document.getElementById('type-tabs').innerHTML = types.map(function(t){
+    var isAll = t==='all';
+    var count = isAll ? barrels.length : barrels.filter(function(b){return b.type===t;}).length;
+    var active = curTypeFilter === t;
+    var tc = typeConfig[t] || {};
+    return '<button onclick="setTypeFilter(\''+t+'\')" class="btn btn-primary btn-sm" style="'+
+      (active?'background:linear-gradient(160deg,rgba(220,235,255,.30),rgba(10,40,100,.55));border-top-color:rgba(220,235,255,.80);color:#E8F4FF':'')+'">'+
+      (isAll?'الكل':tc.icon+' '+tc.label)+' ('+count+')</button>';
+  }).join('');
+
+  // Filter barrels
+  var filtered = curTypeFilter==='all' ? barrels : barrels.filter(function(b){return b.type===curTypeFilter;});
+
+  // Barrel cards
+  document.getElementById('barrels-grid').innerHTML = filtered.length ? filtered.map(function(b) {
+    var pct  = b.capacity > 0 ? Math.max(0, Math.min(100, Math.round(b.current / b.capacity * 100))) : 0;
+    var lvCls = levelClass(pct);
+    var tc   = typeConfig[b.type] || typeConfig.other;
+    var isLow = b.min > 0 && b.current <= b.min;
+    var topColor = isLow ? 'rgba(255,208,96,.65)' : 'rgba(220,235,255,.68)';
+
+    return '<div class="glass glass-sm barrel-card" style="border-top-color:'+topColor+'">'+
+      '<div class="barrel-header">'+
+        (isLow?'<div style="font-size:11px;font-weight:700;color:var(--yw);margin-bottom:6px">⚠️ وصل للحد الأدنى</div>':'')+
+        '<div class="barrel-type '+tc.cls+'">'+tc.icon+' '+tc.label+'</div>'+
+        '<div class="barrel-name">'+b.name+'</div>'+
+        '<div class="barrel-meta">'+(b.location?'📍 '+b.location:'')+(b.unit?' · الوحدة: '+b.unit:'')+'</div>'+
+      '</div>'+
+      '<div class="barrel-level">'+
+        '<div class="level-labels"><span>'+fmtNum(b.current)+' لتر</span><span>'+pct+'%</span><span>'+fmtNum(b.capacity)+' لتر</span></div>'+
+        '<div class="level-bar-bg"><div class="level-bar-fill '+lvCls+'" style="width:'+pct+'%"></div></div>'+
+      '</div>'+
+      '<div class="barrel-nums">'+
+        '<div class="b-num tot"><div class="b-num-val">'+fmtNum(b.capacity)+'</div><div class="b-num-lbl">السعة (لتر)</div></div>'+
+        '<div class="b-num rem"><div class="b-num-val">'+fmtNum(b.current)+'</div><div class="b-num-lbl">المتبقي (لتر)</div></div>'+
+        '<div class="b-num out"><div class="b-num-val">'+fmtNum(b.capacity - b.current)+'</div><div class="b-num-lbl">المصروف (لتر)</div></div>'+
+      '</div>'+
+      '<div style="padding:0 18px 8px;font-size:11px;color:var(--tx3);display:flex;justify-content:space-between">'+
+        '<span>'+(b.price?'سعر اللتر: '+fmtMoney(b.price):'')+'</span>'+
+        '<span>القيمة: <strong style="color:var(--bl)">'+fmtMoney(b.current*(parseFloat(b.price)||0))+'</strong></span>'+
+      '</div>'+
+      '<div class="barrel-actions">'+
+        '<button class="btn btn-danger btn-sm" onclick="openDraw('+b.id+')" style="flex:1;justify-content:center">➖ صرف</button>'+
+        '<button class="btn btn-success btn-sm" onclick="openRefill('+b.id+')" style="flex:1;justify-content:center">➕ تعبئة</button>'+
+        '<button class="btn btn-primary btn-sm btn-icon" onclick="openEditBarrel('+b.id+')" title="تعديل">✎</button>'+
+      '</div>'+
+    '</div>';
+  }).join('') : '<div class="empty-state" style="grid-column:span 3"><div class="empty-ic">🛢️</div><p>لا توجد براميل بعد</p><span>اضغط "إضافة برميل" للبدء</span></div>';
+
+  // Log
+  renderLog(filtLog);
+  updateNavBadge();
+}
+
+function setTypeFilter(t) { curTypeFilter = t; render(); }
+
+function renderLog(data) {
+  document.getElementById('log-body').innerHTML = data.slice(0,100).map(function(l){
+    var opBadge = l.op==='draw' ?
+      '<span class="log-badge log-draw">➖ صرف</span>' :
+      '<span class="log-badge log-add">➕ تعبئة</span>';
+    return '<tr>'+
+      '<td><strong>'+l.barrelName+'</strong></td>'+
+      '<td>'+((typeConfig[l.barrelType]||{}).icon||'')+'</td>'+
+      '<td>'+opBadge+'</td>'+
+      '<td style="text-align:center;font-weight:800;font-size:15px;color:'+(l.op==='draw'?'var(--rd)':'var(--gn)')+'">'+
+        (l.op==='draw'?'−':'+') + fmtNum(l.qty)+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:var(--bl)">'+fmtNum(l.after)+' لتر</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(l.note||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+l.date+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+l.user+'</td>'+
+      '</tr>';
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات بعد</td></tr>';
+}
+
+function filterLog(q) {
+  if (!q) filtLog = allLog.slice();
+  else { var lq=q.toLowerCase(); filtLog=allLog.filter(function(l){return (l.barrelName||'').toLowerCase().includes(lq)||(l.note||'').toLowerCase().includes(lq);}); }
+  renderLog(filtLog);
+}
+
+/* ── Add Barrel ── */
+var editBarrelId = null;
+function openAddBarrel() {
+  editBarrelId = null;
+  document.getElementById('barrel-modal-title').textContent = '➕ إضافة برميل زيت';
+  document.getElementById('b-name').value     = '';
+  document.getElementById('b-type').value     = 'motor';
+  document.getElementById('b-unit').value     = 'لتر';
+  document.getElementById('b-capacity').value = '';
+  document.getElementById('b-current').value  = '';
+  document.getElementById('b-price').value    = '';
+  document.getElementById('b-min').value      = '';
+  document.getElementById('b-loc').value      = '';
+  document.getElementById('b-note').value     = '';
+  document.getElementById('del-barrel-btn').style.display = 'none';
+  document.getElementById('barrel-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('b-name').focus();},200);
+}
+
+function openEditBarrel(id) {
+  var barrels = getBarrels();
+  var b = barrels.find(function(x){return x.id===id;});
+  if (!b) return;
+  editBarrelId = id;
+  document.getElementById('barrel-modal-title').textContent = '✏️ تعديل البرميل';
+  document.getElementById('b-name').value     = b.name||'';
+  document.getElementById('b-type').value     = b.type||'motor';
+  document.getElementById('b-unit').value     = b.unit||'لتر';
+  document.getElementById('b-capacity').value = b.capacity||'';
+  document.getElementById('b-current').value  = b.current||'';
+  document.getElementById('b-price').value    = b.price||'';
+  document.getElementById('b-min').value      = b.min||'';
+  document.getElementById('b-loc').value      = b.location||'';
+  document.getElementById('b-note').value     = b.note||'';
+  document.getElementById('del-barrel-btn').style.display = '';
+  document.getElementById('barrel-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('b-name').focus();},200);
+}
+
+function saveBarrel() {
+  var name     = document.getElementById('b-name').value.trim();
+  var type     = document.getElementById('b-type').value;
+  var unit     = document.getElementById('b-unit').value;
+  var capacity = parseFloat(document.getElementById('b-capacity').value) || 0;
+  var current  = parseFloat(document.getElementById('b-current').value);
+  var price    = parseFloat(document.getElementById('b-price').value) || 0;
+  var min      = parseFloat(document.getElementById('b-min').value) || 0;
+  var location = document.getElementById('b-loc').value.trim();
+  var note     = document.getElementById('b-note').value.trim();
+
+  if (!name)     { tst('أدخل اسم المنتج','r'); return; }
+  if (!capacity) { tst('أدخل سعة البرميل','r'); return; }
+  if (isNaN(current)) current = capacity; // default full
+
+  var barrels = getBarrels();
+
+  if (editBarrelId) {
+    var idx = barrels.findIndex(function(b){return b.id===editBarrelId;});
+    if (idx>=0) Object.assign(barrels[idx], {name,type,unit,capacity,current,price,min,location,note});
+    tst('تم تعديل البرميل ✓','g');
+  } else {
+    var newB = {id:Date.now(), name, type, unit, capacity, current, price, min, location, note, addedAt: new Date().toISOString()};
+    barrels.push(newB);
+    addLog({barrelId:newB.id, barrelName:name, barrelType:type, op:'add', qty:current, after:current, note:'إضافة برميل جديد'});
+    tst('تم إضافة البرميل ✓','g');
+  }
+
+  setBarrels(barrels);
+  closeBarrelModal();
+  render();
+}
+
+function deleteBarrel() {
+  if (!editBarrelId) return;
+  confirm2('هل أنت متأكد من حذف هذا البرميل وكل سجلاته؟', function() {
+    var barrels = getBarrels().filter(function(b){return b.id!==editBarrelId;});
+    setBarrels(barrels);
+    closeBarrelModal();
+    render();
+    tst('تم حذف البرميل','r');
+  });
+}
+
+function closeBarrelModal() {
+  document.getElementById('barrel-modal').classList.remove('on');
+  editBarrelId = null;
+}
+
+/* ── Draw (Withdraw) ── */
+var drawBarrelId = null;
+function openDraw(id) {
+  var b = getBarrels().find(function(x){return x.id===id;});
+  if (!b) return;
+  drawBarrelId = id;
+  var tc = typeConfig[b.type] || typeConfig.other;
+  document.getElementById('draw-barrel-name').textContent = b.name;
+  document.getElementById('draw-barrel-type').textContent = tc.icon + ' ' + tc.label;
+  document.getElementById('draw-avail').textContent = fmtNum(b.current);
+  document.getElementById('draw-qty').value  = '';
+  document.getElementById('draw-note').value = '';
+  document.getElementById('draw-preview').style.display = 'none';
+
+  // Quick amount buttons based on capacity
+  var quickAmts = b.current >= 200 ? [1,2,3,4,5,10,20] :
+                  b.current >= 50  ? [1,2,3,5,10,15,20] :
+                  b.current >= 10  ? [0.5,1,2,3,5] : [0.5,1,2];
+  document.getElementById('quick-btns').innerHTML = quickAmts.map(function(a){
+    return '<button class="liter-btn" onclick="setDrawQty('+a+')">'+a+' لتر</button>';
+  }).join('');
+
+  document.getElementById('draw-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('draw-qty').focus();},200);
+}
+
+function setDrawQty(v) {
+  document.getElementById('draw-qty').value = v;
+  updateDrawPreview(v);
+}
+
+function updateDrawPreview(v) {
+  var b = getBarrels().find(function(x){return x.id===drawBarrelId;});
+  if (!b) return;
+  var qty  = parseFloat(v) || 0;
+  var after = b.current - qty;
+  var prev  = document.getElementById('draw-preview');
+  var afterEl = document.getElementById('draw-after');
+  if (qty > 0) {
+    prev.style.display = 'block';
+    afterEl.textContent = fmtNum(Math.max(0, after));
+    afterEl.style.color = after < 0 ? 'var(--rd)' : after <= (b.min||0) ? 'var(--yw)' : 'var(--gn)';
+    prev.style.background = after < 0 ? 'rgba(255,77,96,.10)' : 'rgba(0,245,184,.08)';
+  } else {
+    prev.style.display = 'none';
+  }
+}
+
+function saveDraw() {
+  var qty  = parseFloat(document.getElementById('draw-qty').value);
+  var note = document.getElementById('draw-note').value.trim();
+  if (!qty || qty <= 0) { tst('أدخل الكمية','r'); return; }
+
+  var barrels = getBarrels();
+  var idx = barrels.findIndex(function(b){return b.id===drawBarrelId;});
+  if (idx < 0) return;
+  var b = barrels[idx];
+
+  if (qty > b.current) {
+    tst('الكمية المطلوبة ('+fmtNum(qty)+' لتر) أكبر من الرصيد المتاح ('+fmtNum(b.current)+' لتر)','r');
+    return;
+  }
+
+  b.current = Math.round((b.current - qty) * 100) / 100;
+  setBarrels(barrels);
+  addLog({barrelId:b.id, barrelName:b.name, barrelType:b.type, op:'draw', qty:qty, after:b.current, note:note});
+
+  closeDrawModal();
+  render();
+  tst('تم تسجيل الصرف: '+fmtNum(qty)+' لتر ✓','r');
+}
+
+function closeDrawModal() {
+  document.getElementById('draw-modal').classList.remove('on');
+  drawBarrelId = null;
+}
+
+/* ── Refill ── */
+var refillBarrelId = null;
+function openRefill(id) {
+  var b = getBarrels().find(function(x){return x.id===id;});
+  if (!b) return;
+  refillBarrelId = id;
+  document.getElementById('refill-barrel-name').textContent = b.name;
+  document.getElementById('refill-avail').textContent = fmtNum(b.current);
+  document.getElementById('refill-cap').textContent   = fmtNum(b.capacity);
+  document.getElementById('refill-qty').value  = '';
+  document.getElementById('refill-note').value = '';
+  document.getElementById('refill-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('refill-qty').focus();},200);
+}
+
+function fillToFull() {
+  var b = getBarrels().find(function(x){return x.id===refillBarrelId;});
+  if (!b) return;
+  document.getElementById('refill-qty').value = b.capacity - b.current;
+}
+
+function saveRefill() {
+  var qty  = parseFloat(document.getElementById('refill-qty').value);
+  var note = document.getElementById('refill-note').value.trim();
+  if (!qty || qty <= 0) { tst('أدخل الكمية','r'); return; }
+
+  var barrels = getBarrels();
+  var idx = barrels.findIndex(function(b){return b.id===refillBarrelId;});
+  if (idx < 0) return;
+  var b = barrels[idx];
+
+  b.current = Math.min(b.capacity, Math.round((b.current + qty) * 100) / 100);
+  setBarrels(barrels);
+  addLog({barrelId:b.id, barrelName:b.name, barrelType:b.type, op:'refill', qty:qty, after:b.current, note:note||'إعادة تعبئة'});
+
+  document.getElementById('refill-modal').classList.remove('on');
+  refillBarrelId = null;
+  render();
+  tst('تمت إعادة التعبئة: '+fmtNum(qty)+' لتر ✓','g');
+}
+
+/* ── Export Excel ── */
+function exportExcel() {
+  if (typeof XLSX === 'undefined') { tst('مكتبة Excel غير متوفرة','r'); return; }
+  var barrels = getBarrels();
+  var log     = getLog();
+
+  // Sheet 1: Barrels
+  var rows1 = [['الاسم','النوع','الوحدة','السعة (لتر)','المتبقي (لتر)','المصروف','سعر اللتر','القيمة','الحد الأدنى','الموقع','الحالة']];
+  barrels.forEach(function(b) {
+    var tc = typeConfig[b.type]||typeConfig.other;
+    rows1.push([b.name, tc.label, b.unit||'لتر', b.capacity, b.current, b.capacity-b.current, b.price||0, b.current*(parseFloat(b.price)||0), b.min||0, b.location||'', b.current<=b.min&&b.min>0?'تحت الحد':'جيد']);
+  });
+
+  // Sheet 2: Log
+  var rows2 = [['البرميل','النوع','العملية','الكمية (لتر)','الرصيد بعد','ملاحظة','التاريخ','المستخدم']];
+  log.forEach(function(l) {
+    var tc = typeConfig[l.barrelType]||typeConfig.other;
+    rows2.push([l.barrelName, tc.label, l.op==='draw'?'صرف':l.op==='refill'?'تعبئة':'إضافة', l.qty, l.after, l.note||'', l.date, l.user]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows1), 'البراميل');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows2), 'سجل الحركات');
+  var d = new Date();
+  XLSX.writeFile(wb, 'براميل_الزيت_'+d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()+'.xlsx');
+  tst('تم تصدير الملف ✓','g');
+}
+
+render();
+</script>
+</body>
+</html>

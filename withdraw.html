@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>صرف من المخزون — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.cam-ov{display:none;position:fixed;inset:0;z-index:300;background:#000;flex-direction:column}
+.cam-ov.on{display:flex}
+.cam-top{background:rgba(4,18,32,.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(180,210,255,.12);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cam-body{flex:1;position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+#scv{width:100%;height:100%;object-fit:cover}
+.cam-frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.cam-box{width:260px;height:150px;position:relative}
+.cc{position:absolute;width:30px;height:30px}
+.cc-tl{top:0;right:0;border-top:3px solid var(--rd);border-right:3px solid var(--rd);border-radius:0 6px 0 0}
+.cc-tr{top:0;left:0;border-top:3px solid var(--rd);border-left:3px solid var(--rd);border-radius:6px 0 0 0}
+.cc-bl{bottom:0;right:0;border-bottom:3px solid var(--rd);border-right:3px solid var(--rd);border-radius:0 0 6px 0}
+.cc-br{bottom:0;left:0;border-bottom:3px solid var(--rd);border-left:3px solid var(--rd);border-radius:0 0 0 6px}
+.scl{position:absolute;right:0;left:0;height:2px;background:linear-gradient(90deg,transparent,var(--rd),transparent);top:50%;animation:smv 1.8s ease-in-out infinite}
+@keyframes smv{0%,100%{top:8%}50%{top:88%}}
+.cam-st{background:rgba(0,0,0,.80);backdrop-filter:blur(16px);border-top:1px solid rgba(255,77,96,.12);padding:14px;text-align:center;color:var(--tx);font-size:13px;flex-shrink:0;min-height:50px;display:flex;align-items:center;justify-content:center}
+.cam-st.ok{color:var(--gn);font-weight:700}.cam-st.er{color:var(--rd)}
+.dup-box{display:none;margin-top:10px;padding:12px 14px;background:linear-gradient(165deg,rgba(255,208,96,.16),rgba(255,208,96,.04));border-top:2px solid rgba(255,230,100,.48);border-left:1px solid rgba(255,208,96,.20);border-right:1px solid rgba(255,208,96,.12);border-bottom:1px solid rgba(0,0,0,.22);border-radius:14px;backdrop-filter:blur(20px)}
+.dup-box.on{display:block}
+#stock-err-modal{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:20px}
+#stock-err-modal.on{display:flex}
+.se-card{background:linear-gradient(160deg,rgba(255,80,100,.20) 0%,rgba(8,30,70,.92) 100%);backdrop-filter:blur(52px);border-top:2px solid rgba(255,170,180,.46);border:1px solid rgba(255,77,96,.28);border-radius:26px;padding:30px 26px;width:100%;max-width:360px;text-align:center;box-shadow:inset 0 2px 0 rgba(255,180,190,.28),0 40px 90px rgba(0,0,0,.75);animation:seIn .3s cubic-bezier(.34,1.56,.64,1);position:relative;z-index:9001;pointer-events:all}
+@keyframes seIn{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
+.se-nums{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.se-num{border-radius:14px;padding:14px 10px;text-align:center}
+.se-num.avail{background:rgba(0,245,184,.14);border:1px solid rgba(0,245,184,.32)}
+.se-num.req{background:rgba(255,77,96,.16);border:1px solid rgba(255,77,96,.34)}
+.se-big{font-size:28px;font-weight:900;line-height:1;margin-bottom:4px}
+.se-num.avail .se-big{color:var(--gn)}.se-num.req .se-big{color:var(--rd)}
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title" style="border-right:4px solid var(--rd);padding-right:12px">
+      <h1 style="color:var(--rd)">➖ صرف من المخزون</h1>
+      <p>تسجيل إخراج القطع</p>
+    </div>
+    <a href="add.html" class="btn btn-success">➕ انتقل للإضافة</a>
+  </div>
+  <div class="page-body">
+    <div style="display:grid;grid-template-columns:440px 1fr;gap:20px;align-items:start">
+      <div class="glass glass-sm" style="padding:22px;border-top-color:rgba(255,77,96,.65)">
+        <div class="field mb-12">
+          <label>باركود المنتج</label>
+          <div style="display:flex;gap:8px">
+            <input class="g-input" id="bc" type="text" placeholder="امسح أو اكتب الباركود..." autocomplete="off" oninput="onBc(this.value)" onkeydown="if(event.key==='Enter')document.getElementById('nm').focus()" style="flex:1"/>
+            <button class="btn btn-danger" onclick="opCam()" style="width:50px;justify-content:center;font-size:20px">📷</button>
+          </div>
+          <div class="dup-box" id="db">
+            <div style="font-size:13px;font-weight:700;color:var(--yw);margin-bottom:8px">📦 معلومات المنتج</div>
+            <div id="dtl" style="display:flex;gap:14px;font-size:11px;color:var(--tx2);margin-bottom:8px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+        <div class="form-grid mb-12">
+          <div class="field"><label>اسم المنتج</label><input class="g-input" id="nm" type="text" placeholder="مثال: فلتر زيت" oninput="onNm(this.value)" onkeydown="if(event.key==='Enter')document.getElementById('qt').focus()"/></div>
+          <div class="field"><label>الكمية المصروفة</label><input class="g-input" id="qt" type="number" value="1" min="1" onkeydown="if(event.key==='Enter')document.getElementById('nt').focus()"/></div>
+          <div class="field" style="grid-column:span 2"><label>ملاحظة / سبب الصرف</label><input class="g-input" id="nt" type="text" placeholder="مثال: صيانة سيارة رقم 1234" onkeydown="if(event.key==='Enter')sub()"/></div>
+        </div>
+        <!-- Stock info card -->
+        <div id="stock-info" style="display:none;margin-bottom:14px;padding:12px 14px;background:rgba(0,245,184,.08);border-top:2px solid rgba(0,245,184,.45);border-left:1px solid rgba(0,245,184,.20);border-right:1px solid rgba(0,245,184,.12);border-bottom:1px solid rgba(0,0,0,.22);border-radius:14px">
+          <div style="font-size:11px;color:var(--tx3);margin-bottom:4px">الرصيد المتاح</div>
+          <div style="font-size:26px;font-weight:900;color:var(--gn)" id="avail-bal">0</div>
+        </div>
+        <button class="btn btn-danger" onclick="sub()" style="width:100%;justify-content:center;font-size:15px;padding:14px;background:linear-gradient(160deg,#FF4D60,#C81E30)">➖ تسجيل الصرف</button>
+      </div>
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="flex-between mb-12">
+          <div class="fw-bold" style="font-size:14px">آخر المصروف</div>
+          <div class="search-wrap"><span class="search-icon">🔍</span><input class="g-input" style="padding:8px 12px 8px 36px;font-size:13px;width:200px" placeholder="بحث..." oninput="filterEnt(this.value)"/></div>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>المنتج</th><th>باركود</th><th>الكمية</th><th>الموقع</th><th>ملاحظة</th><th>التاريخ</th></tr></thead>
+          <tbody id="tb"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Camera -->
+<div class="cam-ov" id="cov">
+  <div class="cam-top"><span style="color:var(--tx);font-size:15px;font-weight:700">📷 مسح الباركود</span><button class="btn btn-danger btn-sm" onclick="clCam()">إغلاق</button></div>
+  <div class="cam-body"><video id="scv" playsinline muted></video>
+    <div class="cam-frame"><div class="cam-box"><div class="cc cc-tl"></div><div class="cc cc-tr"></div><div class="cc cc-bl"></div><div class="cc cc-br"></div><div class="scl"></div></div></div>
+  </div>
+  <div class="cam-st" id="cst">جاري تشغيل الكاميرا...</div>
+</div>
+<!-- Stock error -->
+<div id="stock-err-modal">
+  <div class="se-card">
+    <div style="font-size:48px;margin-bottom:12px">🚫</div>
+    <h3 style="font-size:18px;font-weight:900;color:var(--rd);margin-bottom:8px">لا يمكن الصرف</h3>
+    <div id="se-name" style="font-size:13px;color:var(--tx);font-weight:700;margin-bottom:14px"></div>
+    <div class="se-nums">
+      <div class="se-num avail"><div class="se-big" id="se-avail">0</div><div style="font-size:11px;color:var(--tx3)">الرصيد المتاح</div></div>
+      <div class="se-num req">  <div class="se-big" id="se-req">0</div>  <div style="font-size:11px;color:var(--tx3)">الكمية المطلوبة</div></div>
+    </div>
+    <div id="se-hint" style="font-size:12px;color:var(--tx2);margin-bottom:18px;line-height:1.6"></div>
+    <button class="btn btn-danger" onclick="hideErr()" style="width:100%;justify-content:center;position:relative;z-index:9002;pointer-events:all">حسناً</button>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="scanner.js"></script>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderSidebar('withdraw');
+var session = DB.requireAuth();
+var allEnt = [], filtEnt = [];
+
+var bct, nmTm;
+function onBc(v) {
+  clearTimeout(bct); updateStockInfo(v);
+  if (v.length < 3) return;
+  bct = setTimeout(function() {
+    var p = DB.getEntries().find(function(e){ return e.barcode === v; });
+    if (p) {
+      if (!document.getElementById('nm').value) document.getElementById('nm').value = p.name||'';
+    }
+  }, 280);
+}
+
+function updateStockInfo(v) {
+  var box = document.getElementById('db');
+  var stockCard = document.getElementById('stock-info');
+  if (!v || v.length < 3) { box.classList.remove('on'); stockCard.style.display='none'; return; }
+  var m = DB.getEntries().filter(function(e){ return e.barcode===v; });
+  if (!m.length) { box.classList.remove('on'); stockCard.style.display='none'; return; }
+  box.classList.add('on');
+  var inQ=m.filter(function(e){return e.type==='in';}).reduce(function(s,e){return s+e.qty;},0);
+  var outQ=m.filter(function(e){return e.type==='out';}).reduce(function(s,e){return s+e.qty;},0);
+  var bal=inQ-outQ;
+  var p=m[0];
+  document.getElementById('dtl').innerHTML=
+    '<span>اسم المنتج: <strong style="color:var(--tx)">'+p.name+'</strong></span>'+
+    '<span>الإضافات: <strong style="color:var(--gn)">'+inQ+'</strong></span>'+
+    '<span>الصرف: <strong style="color:var(--rd)">'+outQ+'</strong></span>';
+  stockCard.style.display='block';
+  document.getElementById('avail-bal').textContent=bal;
+  document.getElementById('avail-bal').style.color=bal<=0?'var(--rd)':bal<=5?'var(--yw)':'var(--gn)';
+}
+
+function onNm(v) {
+  clearTimeout(nmTm); if (v.length < 2) return;
+  nmTm = setTimeout(function() {
+    var lv=v.toLowerCase();
+    var m=DB.getEntries().find(function(e){ return e.name && e.name.toLowerCase().indexOf(lv)>=0; });
+    if(m&&!document.getElementById('bc').value){document.getElementById('bc').value=m.barcode;onBc(m.barcode);}
+  }, 350);
+}
+
+function sub() {
+  var bc=document.getElementById('bc').value.trim();
+  var name=document.getElementById('nm').value.trim();
+  var qty=parseInt(document.getElementById('qt').value)||1;
+  var note=document.getElementById('nt').value.trim();
+  if(!bc){tst('أدخل الباركود','r');document.getElementById('bc').focus();return;}
+  if(!name){tst('أدخل اسم المنتج','r');document.getElementById('nm').focus();return;}
+  var bcE=DB.getEntries().filter(function(e){return e.barcode===bc;});
+  var inQ=bcE.filter(function(e){return e.type==='in';}).reduce(function(s,e){return s+e.qty;},0);
+  var outQ=bcE.filter(function(e){return e.type==='out';}).reduce(function(s,e){return s+e.qty;},0);
+  var bal=inQ-outQ;
+  if(!bcE.length){tst('هذا الباركود غير مسجل في المستودع','r');return;}
+  if(qty>bal){
+    document.getElementById('se-name').textContent=name;
+    document.getElementById('se-avail').textContent=bal;
+    document.getElementById('se-req').textContent=qty;
+    document.getElementById('se-hint').textContent=bal<=0?'لا يوجد رصيد متاح.':'الرصيد '+bal+' فقط. قلل الكمية إلى '+bal+' أو أقل.';
+    document.getElementById('stock-err-modal').style.display='flex';
+    return;
+  }
+  var now=new Date();
+  var ds=now.toLocaleDateString('ar-SA-u-nu-latn')+'  '+now.toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
+  DB.addEntry({barcode:bc,name,size:'',qty,price:'',location:'',note,type:'out',date:ds,addedBy:session.name});
+  ['bc','nm','nt'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('qt').value='1';
+  document.getElementById('db').classList.remove('on');
+  document.getElementById('stock-info').style.display='none';
+  document.getElementById('bc').focus();
+  loadEnt();tst('تم تسجيل الصرف ✓','r');
+}
+function hideErr(){document.getElementById('stock-err-modal').style.display='none';document.getElementById('qt').focus();}
+
+function loadEnt(){
+  allEnt=DB.getEntries().filter(function(e){return e.type==='out';});
+  filtEnt=allEnt.slice();renderTbl(filtEnt);
+}
+function filterEnt(q){
+  if(!q){filtEnt=allEnt.slice();}
+  else{var lq=q.toLowerCase();filtEnt=allEnt.filter(function(e){return(e.barcode||'').toLowerCase().includes(lq)||(e.name||'').toLowerCase().includes(lq);});}
+  renderTbl(filtEnt);
+}
+function renderTbl(data){
+  document.getElementById('tb').innerHTML=data.slice(0,50).map(function(e){
+    return '<tr><td><strong>'+e.name+'</strong></td><td class="td-bc">'+e.barcode+'</td>'+
+      '<td style="text-align:center;font-weight:800;font-size:15px;color:var(--rd)">'+e.qty+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.location||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+(e.note||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+e.date+'</td></tr>';
+  }).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد عمليات صرف بعد</td></tr>';
+}
+
+// Camera
+var camOn=false,stream=null,scanTm=null;
+async function opCam(){
+  var ov=document.getElementById('cov'),vid=document.getElementById('scv'),st=document.getElementById('cst');
+  ov.classList.add('on');camOn=true;st.className='cam-st';st.textContent='جاري تشغيل الكاميرا...';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    vid.srcObject=stream;await vid.play();stScan(vid,st);
+  }catch(err){st.className='cam-st er';st.textContent=err.name==='NotAllowedError'?'لم يتم السماح بالكاميرا':'تعذّر فتح الكاميرا';}
+}
+function stScan(vid,st){
+  function onF(code){clCam();document.getElementById('bc').value=code;onBc(code);tst('تم مسح الباركود ✓','g');setTimeout(function(){document.getElementById('qt').focus();},300);}
+  if(typeof ZXingBrowser!=='undefined'&&ZXingBrowser.BrowserMultiFormatReader){
+    try{
+      var reader=new ZXingBrowser.BrowserMultiFormatReader();
+      var cv=document.createElement('canvas');var ctx=cv.getContext('2d',{willReadFrequently:true});
+      st.textContent='وجّه الكاميرا نحو الباركود';
+      scanTm=setInterval(function(){
+        if(!camOn||vid.readyState<2)return;
+        cv.width=vid.videoWidth||640;cv.height=vid.videoHeight||480;ctx.drawImage(vid,0,0);
+        try{var r=reader.decodeFromCanvas(cv);if(r)onF(r.getText());}catch(e){}
+      },200);return;
+    }catch(e1){}
+  }
+  if('BarcodeDetector' in window){
+    var det=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','data_matrix','itf']});
+    st.textContent='وجّه الكاميرا نحو الباركود';
+    scanTm=setInterval(async function(){if(!camOn||vid.readyState<2)return;try{var r=await det.detect(vid);if(r&&r.length)onF(r[0].rawValue);}catch(e){}},250);return;
+  }
+  st.className='cam-st er';st.textContent='اكتب الباركود أدناه';
+  var inp=document.createElement('input');inp.type='text';inp.placeholder='اكتب الباركود ثم Enter...';
+  inp.style.cssText='position:absolute;bottom:70px;left:50%;transform:translateX(-50%);width:82%;padding:13px 16px;font-size:16px;font-family:Cairo,sans-serif;background:rgba(100,10,20,.88);color:#E8F4FF;border-top:2px solid rgba(255,160,170,.72);border-left:1px solid rgba(255,77,96,.28);border-right:1px solid rgba(255,77,96,.16);border-bottom:1px solid rgba(0,0,0,.50);border-radius:14px;outline:none;text-align:center;z-index:10';
+  inp.onkeydown=function(e){if(e.key==='Enter'&&inp.value.trim())onF(inp.value.trim());};
+  document.querySelector('.cam-body').appendChild(inp);setTimeout(function(){inp.focus();},300);
+}
+function clCam(){camOn=false;clearInterval(scanTm);scanTm=null;if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}document.getElementById('scv').srcObject=null;document.getElementById('cov').classList.remove('on');}
+
+loadEnt();
+</script>
+</body>
+</html>
