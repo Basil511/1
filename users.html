@@ -10,73 +10,72 @@
 <div id="nav-root"></div>
 <div class="page-wrap">
   <div class="page-header">
-    <div class="page-title"><h1>👥 المستخدمون</h1><p>إدارة حسابات الدخول</p></div>
-    <button class="btn btn-success" onclick="openModal()">➕ إضافة مستخدم</button>
+    <div class="page-title"><h1>👥 المستخدمون</h1><p>إدارة حسابات الدخول والصلاحيات</p></div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary" onclick="toggleAdminTools()" id="admin-toggle-btn">⚙️ أدوات المدير</button>
+      <button class="btn btn-success" onclick="openModal(null)">➕ إضافة مستخدم</button>
+    </div>
   </div>
   <div class="page-body">
-    <!-- Admin Tools -->
+
+    <!-- Admin Tools Panel -->
     <div id="admin-tools" style="display:none;margin-bottom:20px">
-      <!-- Sync / Backup -->
+
+      <!-- Sync -->
       <div class="glass glass-sm" style="padding:20px;margin-bottom:14px;border-top-color:rgba(77,168,255,.65)">
-        <div class="fw-bold mb-4" style="font-size:15px;color:var(--bl)">☁️ مزامنة البيانات بين الأجهزة</div>
-        <div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.6">
+        <div class="fw-bold mb-8" style="font-size:15px;color:var(--bl)">☁️ مزامنة البيانات بين الأجهزة</div>
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.7">
           صدّر البيانات من هذا الجهاز ← ارفع الملف على GitHub ← استورده في الجهاز الثاني
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <!-- Export -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
           <div class="glass glass-xs" style="padding:16px;border-top-color:rgba(0,245,184,.55)">
-            <div class="fw-bold mb-8" style="font-size:13px;color:var(--gn)">📤 تصدير البيانات</div>
+            <div class="fw-bold mb-4" style="font-size:13px;color:var(--gn)">📤 تصدير البيانات</div>
             <div style="font-size:11px;color:var(--tx3);margin-bottom:12px">يصدر كل البيانات في ملف JSON واحد</div>
-            <button class="btn btn-success" onclick="exportData()" style="width:100%;justify-content:center">
-              تحميل النسخة الاحتياطية
-            </button>
+            <button class="btn btn-success" onclick="exportData()" style="width:100%;justify-content:center">تحميل النسخة الاحتياطية</button>
           </div>
-          <!-- Import -->
           <div class="glass glass-xs" style="padding:16px;border-top-color:rgba(77,168,255,.55)">
-            <div class="fw-bold mb-8" style="font-size:13px;color:var(--bl)">📥 استيراد البيانات</div>
+            <div class="fw-bold mb-4" style="font-size:13px;color:var(--bl)">📥 استيراد البيانات</div>
             <div style="font-size:11px;color:var(--tx3);margin-bottom:12px">استورد ملف JSON من جهاز آخر أو GitHub</div>
-            <label style="width:100%;display:block">
-              <input type="file" accept=".json" onchange="importData(this)" style="display:none"/>
-              <div class="btn btn-primary" style="width:100%;justify-content:center;cursor:pointer;text-align:center">
-                اختر ملف JSON
-              </div>
+            <label style="width:100%;display:block;cursor:pointer">
+              <input type="file" id="import-file" accept=".json" onchange="importData(this)" style="display:none"/>
+              <div class="btn btn-primary" style="width:100%;justify-content:center;cursor:pointer;text-align:center">اختر ملف JSON</div>
             </label>
           </div>
         </div>
-        <!-- GitHub instructions -->
-        <div style="margin-top:14px;padding:12px 14px;border-radius:10px;background:rgba(77,168,255,.07);border:1px solid rgba(77,168,255,.18)">
+        <div style="padding:12px 14px;border-radius:10px;background:rgba(77,168,255,.07);border:1px solid rgba(77,168,255,.18)">
           <div style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:6px">📋 طريقة المزامنة عبر GitHub:</div>
-          <div style="font-size:11px;color:var(--tx3);line-height:1.8">
-            <span style="color:var(--gn)">١.</span> صدّر البيانات من هذا الجهاز (زر التصدير أعلاه)<br>
-            <span style="color:var(--gn)">٢.</span> ارفع الملف <code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px">warehouse_data.json</code> على GitHub Repository<br>
-            <span style="color:var(--gn)">٣.</span> في الجهاز الثاني، حمّل الملف من GitHub واستورده
+          <div style="font-size:11px;color:var(--tx3);line-height:1.9">
+            <span style="color:var(--gn)">١.</span> صدّر البيانات من هذا الجهاز<br>
+            <span style="color:var(--gn)">٢.</span> ارفع الملف على GitHub Repository<br>
+            <span style="color:var(--gn)">٣.</span> في الجهاز الثاني، حمّل الملف من GitHub ثم استورده
           </div>
         </div>
       </div>
+
       <!-- Danger Zone -->
       <div class="glass glass-sm" style="padding:20px;border-top-color:rgba(255,77,96,.65)">
-        <div class="fw-bold mb-4" style="font-size:15px;color:var(--rd)">⚠️ منطقة الخطر</div>
+        <div class="fw-bold mb-4" style="font-size:15px;color:var(--rd)">⚠️ منطقة الخطر — مسح البيانات</div>
         <div style="font-size:12px;color:var(--tx3);margin-bottom:16px">هذه الإجراءات لا يمكن التراجع عنها</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.45)">
-            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🗑️ مسح سجل الحركات</div>
-            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح جميع حركات الإضافة والصرف</div>
-            <button class="btn btn-danger btn-sm" onclick="clearEntries()" style="width:100%;justify-content:center">مسح الحركات</button>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.40)">
+            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🗑️ حركات الجرد</div>
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح الإضافة والصرف</div>
+            <button class="btn btn-danger btn-sm" onclick="clearEntries()" style="width:100%;justify-content:center">مسح</button>
           </div>
-          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.45)">
-            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🛢️ مسح بيانات الزيوت</div>
-            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح البراميل وسجل الزيوت</div>
-            <button class="btn btn-danger btn-sm" onclick="clearOils()" style="width:100%;justify-content:center">مسح الزيوت</button>
+          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.40)">
+            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🛢️ براميل الزيت</div>
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح البراميل والسجل</div>
+            <button class="btn btn-danger btn-sm" onclick="clearOils()" style="width:100%;justify-content:center">مسح</button>
           </div>
-          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.45)">
-            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🔄 مسح بيانات الكفرات</div>
-            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح المقاسات وسجل الكفرات</div>
-            <button class="btn btn-danger btn-sm" onclick="clearTires()" style="width:100%;justify-content:center">مسح الكفرات</button>
+          <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.40)">
+            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">🔄 الكفرات</div>
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح المقاسات والسجل</div>
+            <button class="btn btn-danger btn-sm" onclick="clearTires()" style="width:100%;justify-content:center">مسح</button>
           </div>
           <div class="glass glass-xs" style="padding:14px;border-top-color:rgba(255,77,96,.65)">
-            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">💥 مسح كل البيانات</div>
-            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">يمسح كل شيء ما عدا المستخدمين</div>
-            <button class="btn btn-danger btn-sm" onclick="clearAll()" style="width:100%;justify-content:center;background:linear-gradient(160deg,#FF4D60,#C81E30)">مسح الكل ⚠️</button>
+            <div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:4px">💥 مسح الكل</div>
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:10px">كل شيء ما عدا المستخدمين</div>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()" style="width:100%;justify-content:center;font-weight:900">مسح الكل ⚠️</button>
           </div>
         </div>
       </div>
@@ -85,20 +84,36 @@
     <!-- Users table -->
     <div class="glass glass-sm" style="padding:0;overflow:hidden">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th><th>آخر دخول</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+        <thead><tr>
+          <th>الاسم</th><th>اسم المستخدم</th><th>كلمة المرور</th>
+          <th>الصلاحية</th><th>آخر دخول</th><th>الحالة</th><th>الإجراءات</th>
+        </tr></thead>
         <tbody id="users-body"></tbody>
       </table></div>
     </div>
+
   </div>
 </div>
+
+<!-- Add/Edit Modal -->
 <div id="user-modal" class="modal-overlay">
-  <div class="glass glass-sm modal-card">
+  <div class="glass glass-sm modal-card" style="max-width:480px">
     <div class="modal-title" id="modal-title">➕ إضافة مستخدم</div>
     <div class="form-grid mb-16">
-      <div class="field" style="grid-column:span 2"><label>الاسم الكامل</label><input class="g-input" id="u-name" placeholder="مثال: محمد العمري"/></div>
-      <div class="field"><label>اسم المستخدم</label><input class="g-input" id="u-user" placeholder="للدخول"/></div>
-      <div class="field"><label>كلمة المرور</label><input class="g-input" id="u-pass" type="password" placeholder="كلمة المرور"/></div>
-      <div class="field" style="grid-column:span 2"><label>الصلاحية</label>
+      <div class="field" style="grid-column:span 2">
+        <label>الاسم الكامل</label>
+        <input class="g-input" id="u-name" placeholder="مثال: محمد العمري"/>
+      </div>
+      <div class="field">
+        <label>اسم المستخدم</label>
+        <input class="g-input" id="u-user" placeholder="مثال: mohammed"/>
+      </div>
+      <div class="field">
+        <label>كلمة المرور <span id="pass-hint" style="font-size:10px;color:var(--tx3)"></span></label>
+        <input class="g-input" id="u-pass" type="password" placeholder="كلمة المرور"/>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>الصلاحية</label>
         <select class="g-input g-select" id="u-role">
           <option value="admin">مدير — صلاحيات كاملة</option>
           <option value="manager">مشرف — إضافة وصرف</option>
@@ -108,109 +123,145 @@
     </div>
     <div class="modal-btns">
       <button class="btn btn-success" onclick="saveUser()">حفظ ✓</button>
+      <button id="del-user-btn" class="btn btn-danger" onclick="delCurrentUser()" style="display:none">حذف</button>
       <button class="btn btn-primary" onclick="closeModal()">إلغاء</button>
     </div>
   </div>
 </div>
+
 <div id="toast"></div>
 <script src="db.js"></script>
 <script src="nav.js"></script>
 <script>
 document.getElementById('nav-root').innerHTML = renderSidebar('users');
 var session = DB.requireAuth('admin');
-if (session && session.role === 'admin') { var adminEl = document.getElementById('admin-tools'); if(adminEl) adminEl.style.display = 'none'; }
 var editId = null;
 
+/* ── Toggle admin tools ── */
+function toggleAdminTools() {
+  var el  = document.getElementById('admin-tools');
+  var btn = document.getElementById('admin-toggle-btn');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    btn.textContent  = '✕ إغلاق الأدوات';
+  } else {
+    el.style.display = 'none';
+    btn.textContent  = '⚙️ أدوات المدير';
+  }
+}
+
+/* ── Modal ── */
 function openModal(u) {
   editId = u ? u.id : null;
-  document.getElementById('modal-title').textContent = u ? '✏️ تعديل المستخدم' : '➕ إضافة مستخدم';
+  document.getElementById('modal-title').textContent = u ? 'تعديل المستخدم' : 'إضافة مستخدم';
   document.getElementById('u-name').value = u ? u.name     : '';
   document.getElementById('u-user').value = u ? u.username : '';
   document.getElementById('u-pass').value = '';
-  document.getElementById('u-role').value = u ? u.role : 'manager';
+  document.getElementById('u-role').value = u ? u.role     : 'manager';
+  document.getElementById('pass-hint').textContent = u ? '(اتركها فارغة للإبقاء على القديمة)' : '';
+  document.getElementById('del-user-btn').style.display = (u && u.id !== session.id) ? '' : 'none';
   document.getElementById('user-modal').classList.add('on');
-  setTimeout(function(){document.getElementById('u-name').focus();},200);
+  setTimeout(function(){ document.getElementById('u-name').focus(); }, 200);
 }
-function closeModal(){document.getElementById('user-modal').classList.remove('on');}
+function closeModal() { document.getElementById('user-modal').classList.remove('on'); editId = null; }
 
 function saveUser() {
-  var data = {name:document.getElementById('u-name').value.trim(),username:document.getElementById('u-user').value.trim(),role:document.getElementById('u-role').value,active:true};
+  var name = document.getElementById('u-name').value.trim();
+  var user = document.getElementById('u-user').value.trim();
   var pass = document.getElementById('u-pass').value;
-  if (!data.name||!data.username){tst('أدخل الاسم واسم المستخدم','r');return;}
+  var role = document.getElementById('u-role').value;
+  if (!name || !user) { tst('أدخل الاسم واسم المستخدم', 'r'); return; }
   if (editId) {
-    if (pass) data.password = pass;
-    DB.updateUser(editId,data); tst('تم التعديل ✓','g');
+    var changes = { name: name, username: user, role: role };
+    if (pass) changes.password = pass;
+    DB.updateUser(editId, changes);
+    if (editId === session.id) { session.name = name; var s = DB.get(DB.K.auth); if(s){s.name=name;DB.set(DB.K.auth,s);} }
+    tst('تم التعديل ✓', 'g');
   } else {
-    if (!pass){tst('أدخل كلمة المرور','r');return;}
-    data.password = pass; DB.addUser(data); tst('تمت الإضافة ✓','g');
+    if (!pass) { tst('أدخل كلمة المرور', 'r'); return; }
+    var dup = DB.getUsers().find(function(u){ return u.username === user; });
+    if (dup) { tst('اسم المستخدم موجود مسبقاً', 'r'); return; }
+    DB.addUser({ name: name, username: user, password: pass, role: role, active: true });
+    tst('تمت الإضافة ✓', 'g');
   }
   closeModal(); render();
 }
 
-function toggleActive(id, cur) {
-  DB.updateUser(id,{active:!cur}); render();
-  tst(cur?'تم تعطيل الحساب':'تم تفعيل الحساب', cur?'r':'g');
+function delCurrentUser() {
+  if (!editId || editId === session.id) return;
+  confirm2('حذف هذا المستخدم نهائياً؟', function() {
+    DB.deleteUser(editId); closeModal(); render(); tst('تم الحذف', 'r');
+  });
 }
 
+function toggleActive(id, cur) {
+  if (id === session.id) { tst('لا يمكنك تعطيل حسابك الخاص', 'r'); return; }
+  DB.updateUser(id, { active: !cur });
+  render();
+  tst(cur ? 'تم تعطيل الحساب' : 'تم تفعيل الحساب', cur ? 'r' : 'g');
+}
+
+/* ── Render users table ── */
 function render() {
   var users = DB.getUsers();
-  document.getElementById('users-body').innerHTML = users.map(function(u){
-    var roleBadge = u.role==='admin'?'<span class="badge badge-admin">مدير</span>':u.role==='manager'?'<span class="badge badge-manager">مشرف</span>':'<span class="badge badge-viewer">مستعرض</span>';
-    var activeBadge = u.active!==false?'<span class="badge badge-in">فعّال</span>':'<span class="badge badge-out">معطّل</span>';
-    var lastLogin = u.lastLogin ? fmtDate(u.lastLogin) : 'لم يدخل بعد';
-    return '<tr>'+
-      '<td><strong>'+u.name+'</strong></td>'+
-      '<td class="td-bc">'+u.username+'</td>'+
-      '<td>'+roleBadge+'</td>'+
-      '<td style="font-size:11px;color:var(--tx3)">'+lastLogin+'</td>'+
-      '<td>'+activeBadge+'</td>'+
-      '<td><div class="flex gap-8">'+
-        (u.id!==session.id?'<button class="btn btn-primary btn-sm" onclick=\'openModal('+JSON.stringify(u)+')\'>تعديل</button>':'<span style="font-size:11px;color:var(--tx3)">حسابك</span>')+
-        (u.id!==session.id?'<button class="btn '+(u.active!==false?'btn-warn':'btn-success')+' btn-sm" onclick="toggleActive('+u.id+','+(u.active!==false)+')">'+(u.active!==false?'تعطيل':'تفعيل')+'</button>':'')+
+  var rl = { admin: 'مدير', manager: 'مشرف', viewer: 'مستعرض' };
+  var rc = { admin: 'badge-admin', manager: 'badge-manager', viewer: 'badge-viewer' };
+  document.getElementById('users-body').innerHTML = users.map(function(u) {
+    var isMe   = u.id === session.id;
+    var active = u.active !== false;
+    var pass   = u.password ? '●'.repeat(Math.min(u.password.length, 8)) : '—';
+    var last   = u.lastLogin ? fmtDate(u.lastLogin) : 'لم يدخل بعد';
+    return '<tr style="' + (isMe ? 'background:rgba(0,245,184,.04)' : '') + '">' +
+      '<td><strong>' + u.name + '</strong>' + (isMe ? ' <span class="tag" style="font-size:10px">أنت</span>' : '') + '</td>' +
+      '<td class="td-bc">' + u.username + '</td>' +
+      '<td style="font-family:monospace;color:var(--tx3)">' + pass + '</td>' +
+      '<td><span class="badge ' + (rc[u.role]||'badge-viewer') + '">' + (rl[u.role]||u.role) + '</span></td>' +
+      '<td style="font-size:11px;color:var(--tx3)">' + last + '</td>' +
+      '<td>' + (active ? '<span class="badge badge-in">فعّال</span>' : '<span class="badge badge-out">معطّل</span>') + '</td>' +
+      '<td><div class="flex gap-8">' +
+        '<button class="btn btn-primary btn-sm" onclick=\'openModal(' + JSON.stringify(u) + ')\'>✎ تعديل</button>' +
+        (!isMe ? '<button class="btn btn-' + (active?'warn':'success') + ' btn-sm" onclick="toggleActive(' + u.id + ',' + active + ')">' + (active?'تعطيل':'تفعيل') + '</button>' : '') +
       '</div></td></tr>';
-  }).join('');
-}
-render();
-
-/* ── Admin Tools ── */
-function toggleAdminTools() {
-  var el  = document.getElementById('admin-tools');
-  var btn = document.getElementById('admin-toggle-btn');
-  var vis = el.style.display !== 'none';
-  el.style.display  = vis ? 'none' : 'block';
-  btn.textContent   = vis ? '⚙️ أدوات المدير' : '✕ إغلاق الأدوات';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--tx3)">لا يوجد مستخدمون</td></tr>';
+  updateNavBadge();
 }
 
-/* ── Export ALL data ── */
+/* ══════════════════════════════
+   EXPORT — تصدير كل البيانات
+══════════════════════════════ */
 function exportData() {
   var data = {
-    version:   '1.0',
-    exportedAt: new Date().toISOString(),
-    exportedBy: session.name,
-    entries:   DB.get('wh_entries')   || [],
-    suppliers: DB.get('wh_suppliers') || [],
-    users:     DB.get('wh_users')     || [],
-    activity:  DB.get('wh_activity')  || [],
-    settings:  DB.get('wh_settings')  || {},
-    minstock:  DB.get('wh_minstock')  || {},
-    oil_barrels: DB.get('wh_oil_barrels') || [],
-    oil_log:     DB.get('wh_oil_log')     || [],
-    tires:       DB.get('wh_tires')       || [],
-    tire_log:    DB.get('wh_tire_log')    || [],
+    version:     '1.0',
+    exportedAt:  new Date().toISOString(),
+    exportedBy:  session.name,
+    entries:     DB.get('wh_entries')      || [],
+    suppliers:   DB.get('wh_suppliers')    || [],
+    users:       DB.get('wh_users')        || [],
+    activity:    DB.get('wh_activity')     || [],
+    settings:    DB.get('wh_settings')     || {},
+    minstock:    DB.get('wh_minstock')     || {},
+    oil_barrels: DB.get('wh_oil_barrels')  || [],
+    oil_log:     DB.get('wh_oil_log')      || [],
+    tires:       DB.get('wh_tires')        || [],
+    tire_log:    DB.get('wh_tire_log')     || [],
   };
   var json = JSON.stringify(data, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   var d    = new Date();
-  a.href   = url;
+  a.href     = url;
   a.download = 'warehouse_data_' + d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate() + '.json';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  tst('تم تصدير البيانات ✓ — ' + data.entries.length + ' حركة', 'g');
+  tst('تم التصدير — ' + data.entries.length + ' حركة ✓', 'g');
 }
 
-/* ── Import data ── */
+/* ══════════════════════════════
+   IMPORT — استيراد البيانات
+══════════════════════════════ */
 function importData(input) {
   var file = input.files[0];
   if (!file) return;
@@ -219,44 +270,40 @@ function importData(input) {
     try {
       var data = JSON.parse(e.target.result);
       if (!data.version) { tst('ملف غير صحيح', 'r'); return; }
-      confirm2(
-        'سيتم استبدال كل البيانات الحالية بالبيانات المستوردة.
-' +
-        'الملف يحتوي: ' + (data.entries||[]).length + ' حركة، ' +
-        (data.oil_barrels||[]).length + ' برميل، ' +
-        (data.tires||[]).length + ' مقاس كفر.
-
-هل تريد المتابعة؟',
-        function() {
-          if (data.entries)      DB.set('wh_entries',      data.entries);
-          if (data.suppliers)    DB.set('wh_suppliers',    data.suppliers);
-          if (data.activity)     DB.set('wh_activity',     data.activity);
-          if (data.settings)     DB.set('wh_settings',     data.settings);
-          if (data.minstock)     DB.set('wh_minstock',     data.minstock);
-          if (data.oil_barrels)  DB.set('wh_oil_barrels',  data.oil_barrels);
-          if (data.oil_log)      DB.set('wh_oil_log',      data.oil_log);
-          if (data.tires)        DB.set('wh_tires',        data.tires);
-          if (data.tire_log)     DB.set('wh_tire_log',     data.tire_log);
-          // Keep current users unless imported file has different ones
-          if (data.users && data.users.length > 0) {
-            if (confirm('هل تريد استبدال المستخدمين أيضاً؟')) {
-              DB.set('wh_users', data.users);
-            }
-          }
-          DB.logActivity('import', 'استيراد بيانات: ' + (data.entries||[]).length + ' حركة من ' + (data.exportedBy||'جهاز آخر'));
-          tst('تم استيراد البيانات بنجاح ✓', 'g');
-          input.value = '';
-          render();
+      var msg = 'سيتم استبدال البيانات الحالية. الملف يحتوي:\n' +
+                (data.entries||[]).length    + ' حركة جرد\n' +
+                (data.oil_barrels||[]).length + ' برميل زيت\n' +
+                (data.tires||[]).length       + ' مقاس كفر\n\nهل تريد المتابعة؟';
+      confirm2(msg, function() {
+        if (data.entries)     DB.set('wh_entries',     data.entries);
+        if (data.suppliers)   DB.set('wh_suppliers',   data.suppliers);
+        if (data.activity)    DB.set('wh_activity',    data.activity);
+        if (data.settings)    DB.set('wh_settings',    data.settings);
+        if (data.minstock)    DB.set('wh_minstock',    data.minstock);
+        if (data.oil_barrels) DB.set('wh_oil_barrels', data.oil_barrels);
+        if (data.oil_log)     DB.set('wh_oil_log',     data.oil_log);
+        if (data.tires)       DB.set('wh_tires',       data.tires);
+        if (data.tire_log)    DB.set('wh_tire_log',    data.tire_log);
+        if (data.users && data.users.length > 0) {
+          confirm2('هل تريد استيراد المستخدمين أيضاً؟', function() {
+            DB.set('wh_users', data.users);
+            render();
+          });
         }
-      );
+        DB.logActivity('import', 'استيراد بيانات من: ' + (data.exportedBy || 'جهاز آخر'));
+        tst('تم الاستيراد بنجاح ✓', 'g');
+        input.value = '';
+      });
     } catch(err) {
-      tst('خطأ في قراءة الملف: ' + err.message, 'r');
+      tst('خطأ في قراءة الملف', 'r');
     }
   };
   reader.readAsText(file);
 }
 
-/* ── Clear functions ── */
+/* ══════════════════════════════
+   CLEAR — مسح البيانات
+══════════════════════════════ */
 function clearEntries() {
   confirm2('مسح جميع حركات الجرد (إضافة وصرف)؟ لا يمكن التراجع.', function() {
     DB.set('wh_entries', []);
@@ -284,23 +331,21 @@ function clearTires() {
 }
 
 function clearAll() {
-  confirm2(
-    '⚠️ تحذير: سيتم مسح كل البيانات بما فيها:\n• حركات الجرد كلها\n• البراميل والزيوت\n• الكفرات\n• الموردون\n• سجل النشاط\n\nسيبقى فقط: المستخدمون والإعدادات.\n\nهل أنت متأكد تماماً؟',
-    function() {
-      DB.set('wh_entries',      []);
-      DB.set('wh_activity',     []);
-      DB.set('wh_suppliers',    []);
-      DB.set('wh_minstock',     {});
-      DB.set('wh_oil_barrels',  []);
-      DB.set('wh_oil_log',      []);
-      DB.set('wh_tires',        []);
-      DB.set('wh_tire_log',     []);
-      DB.logActivity('delete', 'مسح شامل لكل البيانات بواسطة: ' + session.name);
-      tst('تم مسح كل البيانات ⚠️', 'r');
-    }
-  );
+  confirm2('تحذير: سيتم مسح كل البيانات (جرد + زيوت + كفرات + موردون + سجل النشاط). المستخدمون يبقون. هل أنت متأكد؟', function() {
+    DB.set('wh_entries',     []);
+    DB.set('wh_activity',    []);
+    DB.set('wh_suppliers',   []);
+    DB.set('wh_minstock',    {});
+    DB.set('wh_oil_barrels', []);
+    DB.set('wh_oil_log',     []);
+    DB.set('wh_tires',       []);
+    DB.set('wh_tire_log',    []);
+    DB.logActivity('delete', 'مسح شامل لكل البيانات بواسطة: ' + session.name);
+    tst('تم مسح كل البيانات', 'r');
+  });
 }
 
+render();
 </script>
 </body>
 </html>
