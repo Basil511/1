@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>الخزانات</title><link rel="stylesheet" href="css/main.css"></head>
+<body><div class="main">
+<div class="topbar"><div><div class="page-title">⛽ إدارة الخزانات</div><div class="page-sub">حالة ومستويات خزانات الوقود</div></div><div class="topbar-actions"><button class="btn btn-accent btn-sm" onclick="openModal('m-add')">+ إضافة خزان</button></div></div>
+<div class="content">
+<div class="g g4" style="margin-bottom:14px" id="kpis"></div>
+<div class="g g2" id="tanks-grid"></div>
+</div></div>
+<div class="modal-ov" id="m-add"><div class="modal"><div class="modal-head"><div class="modal-title">⛽ إضافة خزان</div><button class="mclose" onclick="closeModal('m-add')">✕</button></div>
+<div class="form-group"><label class="form-label">اسم الخزان</label><input id="t-name" class="form-input" placeholder="خزان بنزين 91 — B"></div>
+<div class="form-row2"><div class="form-group"><label class="form-label">نوع الوقود</label><select id="t-fuel" class="form-input"><option value="petrol">⛽ بنزين 91</option><option value="diesel">🚛 ديزل</option></select></div><div class="form-group"><label class="form-label">الطاقة (لتر)</label><input id="t-cap" class="form-input" type="number" value="5000"></div></div>
+<div class="form-row2"><div class="form-group"><label class="form-label">المستوى الحالي (لتر)</label><input id="t-curr" class="form-input" type="number" value="0"></div><div class="form-group"><label class="form-label">السعر (ر/لتر)</label><input id="t-price" class="form-input" type="number" value="2.18" step="0.01"></div></div>
+<div class="form-group"><label class="form-label">الموقع</label><input id="t-loc" class="form-input" placeholder="محطة B"></div>
+<div class="mfoot"><button class="btn btn-accent" onclick="addTank()">إضافة</button><button class="btn btn-ghost" onclick="closeModal('m-add')">إلغاء</button></div>
+</div></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();loadTheme();buildSidebar('tanks');
+function render(){
+  const db=getDB();
+  const ptotal=db.tanks.filter(t=>t.fuel==='petrol').reduce((a,t)=>a+t.current,0);
+  const dtotal=db.tanks.filter(t=>t.fuel==='diesel').reduce((a,t)=>a+t.current,0);
+  const low=db.tanks.filter(t=>tankPct(t)<20).length;
+  document.getElementById('kpis').innerHTML=[
+    {l:'إجمالي الخزانات',v:db.tanks.length,i:'⛽',c:'#f59e0b'},
+    {l:'بنزين 91 المتاح',v:fmt(ptotal)+' لتر',i:'⛽',c:'#f59e0b'},
+    {l:'ديزل المتاح',v:fmt(dtotal)+' لتر',i:'🚛',c:'#374151'},
+    {l:'خزانات منخفضة',v:low,i:'⚠️',c:'var(--red)'},
+  ].map(k=>`<div class="kpi" style="--k-color:${k.c}"><div class="kpi-accent"></div><div class="kpi-icon">${k.i}</div><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div></div>`).join('');
+  document.getElementById('tanks-grid').innerHTML=db.tanks.map(t=>{
+    const pct=tankPct(t);const col=tankColor(pct);
+    const movs=db.movements.filter(m=>m.tankId===t.id).slice(0,4);
+    return`<div class="card"><div class="card-head"><div><div style="font-size:14px;font-weight:800;color:var(--text)">${t.fuel==='petrol'?'⛽':'🚛'} ${t.name}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${t.location||''} | ${fmt(t.price)} ر/لتر</div></div><div style="display:flex;gap:5px"><button class="btn btn-sm btn-ghost" onclick="location.href='receive.html'">⬆️</button><button class="btn btn-sm btn-ghost" onclick="location.href='dispense.html'">⬇️</button><button class="btn btn-danger btn-xs" onclick="delTank(${t.id})">🗑️</button></div></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px"><span>المتاح</span><span style="font-weight:700;color:${col}">${pct}%</span></div><div class="prog" style="height:10px"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:3px"><span>${fmt(t.current)} لتر</span><span>${fmt(t.capacity)} لتر</span></div></div><div style="text-align:center;padding:10px 14px;border-radius:10px;background:${col}15;border:1px solid ${col}30"><div style="font-size:24px;font-weight:900;color:${col}">${pct}%</div></div></div>
+    <div style="font-size:10.5px;font-weight:700;color:var(--text3);margin-bottom:6px">آخر الحركات:</div>
+    ${movs.map(m=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px"><span style="color:var(--text2)">${m.plate||m.note||'—'}</span><span style="font-weight:700;color:${m.type==='receive'?'var(--green)':'var(--red)'}">${m.type==='receive'?'+':'-'}${fmt(m.liters)} لتر</span></div>`).join('') || '<div style="font-size:11px;color:var(--text3)">لا توجد حركات</div>'}
+    </div>`;}).join('');
+}
+function addTank(){
+  const db=getDB();const name=document.getElementById('t-name').value.trim();if(!name){toast('الاسم مطلوب','error');return;}
+  db.tanks.push({id:nextId(db,'tank'),name,fuel:document.getElementById('t-fuel').value,capacity:parseFloat(document.getElementById('t-cap').value)||5000,current:parseFloat(document.getElementById('t-curr').value)||0,price:parseFloat(document.getElementById('t-price').value)||2.18,location:document.getElementById('t-loc').value.trim()});
+  saveDB(db);closeModal('m-add');logActivity('إضافة خزان',name);render();toast('✅ تمت الإضافة','success');
+}
+function delTank(id){const db=getDB();const t=db.tanks.find(x=>x.id===id);if(!t||!confirm(`حذف "${t.name}"؟`))return;db.tanks=db.tanks.filter(x=>x.id!==id);saveDB(db);logActivity('حذف خزان',t.name);render();toast('🗑️ تم الحذف');}
+render();
+</script></body></html>

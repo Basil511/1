@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>صرف وقود — FleetIQ</title>
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<div class="main">
+  <div class="topbar">
+    <div><div class="page-title">⬇️ صرف وقود</div><div class="page-sub">صرف بنزين أو ديزل للمركبات</div></div>
+  </div>
+  <div class="content">
+    <div class="g g2" style="gap:20px">
+      <div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">بيانات الصرف</div></div>
+          <div class="form-group">
+            <label class="form-label">نوع الوقود</label>
+            <div style="display:flex;gap:8px">
+              <button id="btn-petrol" onclick="setFuel('petrol')" style="flex:1;padding:12px;border-radius:9px;border:2px solid #f59e0b;background:#fffbeb;font-size:13px;font-weight:700;cursor:pointer;font-family:Tajawal,sans-serif;color:#92400e;transition:all .15s">⛽ بنزين 91</button>
+              <button id="btn-diesel" onclick="setFuel('diesel')" style="flex:1;padding:12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-weight:700;cursor:pointer;font-family:Tajawal,sans-serif;color:var(--text2);transition:all .15s">🚛 ديزل</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">الخزان</label>
+            <select id="f-tank" class="form-input" onchange="updateBalance()"></select>
+            <div id="tank-balance" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">رقم اللوحة</label>
+            <div style="display:flex;gap:7px">
+              <input id="f-plate" class="form-input" placeholder="مثال: 7147-BAT" list="plates-list" oninput="lookupVehicle(this.value)" style="flex:1">
+              <datalist id="plates-list"></datalist>
+            </div>
+            <div id="vehicle-info" style="font-size:11.5px;color:var(--green);margin-top:4px"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">السائق</label>
+            <input id="f-driver" class="form-input" placeholder="اسم السائق">
+          </div>
+          <div class="form-group">
+            <label class="form-label">الكمية (لتر)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button onclick="adj(-10)" class="btn btn-ghost" style="width:36px;height:36px;padding:0;justify-content:center;font-size:16px">−</button>
+              <input id="f-liters" class="form-input" type="number" min="1" value="50" style="text-align:center;font-size:20px;font-weight:900" oninput="calcCost()">
+              <button onclick="adj(10)" class="btn btn-ghost" style="width:36px;height:36px;padding:0;justify-content:center;font-size:16px">+</button>
+            </div>
+            <div id="qty-warn" style="font-size:11px;color:var(--red);margin-top:4px;display:none">⚠️ الكمية تتجاوز رصيد الخزان</div>
+          </div>
+          <div id="cost-preview" style="background:var(--bg);border-radius:9px;padding:10px 13px;margin-bottom:12px;display:none">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px">
+              <span style="color:var(--text3)">التكلفة المقدرة</span>
+              <span style="font-weight:800;color:var(--text)" id="cost-val">—</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ملاحظة</label>
+            <input id="f-note" class="form-input" placeholder="اختياري...">
+          </div>
+          <button class="btn btn-accent" style="width:100%;padding:12px;font-size:14px" onclick="doDispense()">⬇️ تأكيد الصرف</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-head"><div class="card-title">📋 آخر الصرفيات</div></div>
+          <div id="recent-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">⛽ حالة الخزانات</div></div>
+          <div id="tanks-status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth(); loadTheme(); buildSidebar('dispense');
+
+let currentFuel='petrol';
+
+function setFuel(f){
+  currentFuel=f;
+  const bp=document.getElementById('btn-petrol');
+  const bd=document.getElementById('btn-diesel');
+  if(f==='petrol'){
+    bp.style.border='2px solid #f59e0b'; bp.style.background='#fffbeb'; bp.style.color='#92400e';
+    bd.style.border='1px solid var(--border)'; bd.style.background='var(--bg)'; bd.style.color='var(--text2)';
+  } else {
+    bd.style.border='2px solid #374151'; bd.style.background='#f9fafb'; bd.style.color='#111';
+    bp.style.border='1px solid var(--border)'; bp.style.background='var(--bg)'; bp.style.color='var(--text2)';
+  }
+  fillTanks(); fillPlates();
+}
+
+function fillTanks(){
+  const db=getDB();
+  const sel=document.getElementById('f-tank');
+  const tanks=db.tanks.filter(t=>t.fuel===currentFuel);
+  sel.innerHTML=tanks.map(t=>`<option value="${t.id}">${t.name} (${fmt(t.current)} لتر)</option>`).join('');
+  updateBalance();
+}
+
+function updateBalance(){
+  const db=getDB();
+  const id=parseInt(document.getElementById('f-tank').value);
+  const t=db.tanks.find(x=>x.id===id);
+  if(t){
+    document.getElementById('tank-balance').textContent=`المتاح: ${fmt(t.current)} لتر | ${fmt(tankPct(t))}% ممتلئ`;
+    checkQty();
+    calcCost();
+  }
+}
+
+function fillPlates(){
+  const db=getDB();
+  const dl=document.getElementById('plates-list');
+  dl.innerHTML=db.vehicles.filter(v=>v.fuel===currentFuel).map(v=>`<option value="${v.plate}">${v.plate} — ${v.driver}</option>`).join('');
+}
+
+function lookupVehicle(plate){
+  const db=getDB();
+  const v=db.vehicles.find(x=>x.plate===plate);
+  const el=document.getElementById('vehicle-info');
+  if(v){
+    el.textContent=`✅ ${v.brand} | ${v.driver} | ${v.type}`;
+    el.style.color='var(--green)';
+    document.getElementById('f-driver').value=v.driver;
+  } else { el.textContent=''; document.getElementById('f-driver').value=''; }
+}
+
+function adj(d){
+  const inp=document.getElementById('f-liters');
+  inp.value=Math.max(1,(parseInt(inp.value)||0)+d);
+  checkQty(); calcCost();
+}
+
+function checkQty(){
+  const db=getDB();
+  const id=parseInt(document.getElementById('f-tank').value);
+  const t=db.tanks.find(x=>x.id===id);
+  const qty=parseFloat(document.getElementById('f-liters').value)||0;
+  const warn=document.getElementById('qty-warn');
+  warn.style.display=(t&&qty>t.current)?'block':'none';
+}
+
+function calcCost(){
+  const db=getDB();
+  const id=parseInt(document.getElementById('f-tank').value);
+  const t=db.tanks.find(x=>x.id===id);
+  const qty=parseFloat(document.getElementById('f-liters').value)||0;
+  const el=document.getElementById('cost-preview');
+  if(t&&qty>0){ el.style.display='block'; document.getElementById('cost-val').textContent=fmt(qty*t.price)+' ريال'; }
+  else el.style.display='none';
+}
+
+function doDispense(){
+  const db=getDB();
+  const tankId=parseInt(document.getElementById('f-tank').value);
+  const plate=document.getElementById('f-plate').value.trim();
+  const driver=document.getElementById('f-driver').value.trim();
+  const liters=parseFloat(document.getElementById('f-liters').value)||0;
+  const note=document.getElementById('f-note').value.trim();
+  const tank=db.tanks.find(t=>t.id===tankId);
+
+  if(!plate){toast('رقم اللوحة مطلوب','error');return;}
+  if(liters<1){toast('الكمية يجب أن تكون أكبر من صفر','error');return;}
+  if(!tank){toast('الخزان غير موجود','error');return;}
+  if(liters>tank.current){toast(`❌ الرصيد المتاح ${fmt(tank.current)} لتر فقط`,'error');return;}
+
+  const cost=liters*tank.price;
+  tank.current-=liters;
+  const session=getSession();
+  db.movements.unshift({id:nextId(db,'movement'),type:'dispense',fuel:currentFuel,liters,tankId,plate,driver,cost,note,userId:session.id,date:nowStr()});
+  saveDB(db);
+  logActivity('صرف وقود',`${fmt(liters)} لتر ${fuelLabel(currentFuel)} → ${plate}`);
+  toast(`✅ تم صرف ${fmt(liters)} لتر لـ ${plate}`,'success');
+
+  // Reset
+  document.getElementById('f-plate').value='';
+  document.getElementById('f-driver').value='';
+  document.getElementById('f-liters').value=50;
+  document.getElementById('vehicle-info').textContent='';
+  document.getElementById('cost-preview').style.display='none';
+  fillTanks(); renderRecent(); renderTanks();
+  if(tank.current<tank.capacity*0.2) toast(`⚠️ تحذير: ${tank.name} منخفض — ${fmt(tank.current)} لتر`,'warning');
+}
+
+function renderRecent(){
+  const db=getDB();
+  const items=db.movements.filter(m=>m.type==='dispense').slice(0,6);
+  const el=document.getElementById('recent-list');
+  if(!items.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">لا توجد صرفيات</div>';return;}
+  el.innerHTML=items.map(m=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)">
+      ${fuelBadge(m.fuel)}
+      <div style="flex:1">
+        <div style="font-size:12.5px;font-weight:700;color:var(--text)">${m.plate||'—'}</div>
+        <div style="font-size:10.5px;color:var(--text3)">${m.date}</div>
+      </div>
+      <div style="text-align:left">
+        <div style="font-size:13px;font-weight:800;color:var(--red)">−${fmt(m.liters)} لتر</div>
+        <div style="font-size:10.5px;color:var(--text3)">${fmt(m.cost)} ر</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderTanks(){
+  const db=getDB();
+  document.getElementById('tanks-status').innerHTML=db.tanks.map(t=>{
+    const pct=tankPct(t); const col=tankColor(pct);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:12.5px;font-weight:700;color:var(--text)">${t.fuel==='petrol'?'⛽':'🚛'} ${t.name}</span>
+        <span style="font-size:12px;font-weight:700;color:${col}">${fmt(t.current)} لتر</span>
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+fillTanks(); fillPlates(); renderRecent(); renderTanks();
+document.getElementById('f-liters').addEventListener('input',()=>{checkQty();calcCost();});
+</script>
+</body></html>

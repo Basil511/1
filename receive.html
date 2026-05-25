@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>استلام وقود</title><link rel="stylesheet" href="css/main.css"></head>
+<body>
+<div class="main">
+  <div class="topbar"><div><div class="page-title">⬆️ استلام وقود</div><div class="page-sub">تسجيل استلام وقود جديد للخزانات</div></div></div>
+  <div class="content">
+    <div class="g g2" style="gap:20px">
+      <div class="card">
+        <div class="card-head"><div class="card-title">بيانات الاستلام</div></div>
+        <div class="form-group"><label class="form-label">نوع الوقود</label>
+          <div style="display:flex;gap:8px">
+            <button id="rp" onclick="setRFuel('petrol')" style="flex:1;padding:11px;border-radius:9px;border:2px solid #f59e0b;background:#fffbeb;font-size:13px;font-weight:700;cursor:pointer;font-family:Tajawal,sans-serif;color:#92400e">⛽ بنزين 91</button>
+            <button id="rd" onclick="setRFuel('diesel')" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-weight:700;cursor:pointer;font-family:Tajawal,sans-serif;color:var(--text2)">🚛 ديزل</button>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">الخزان</label><select id="r-tank" class="form-input" onchange="rUpdateBalance()"></select><div id="r-balance" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div></div>
+        <div class="form-group"><label class="form-label">الكمية المستلمة (لتر)</label><input id="r-liters" class="form-input" type="number" min="1" value="1000" style="font-size:18px;font-weight:800;text-align:center" oninput="rCalcCost()"></div>
+        <div id="r-cost-preview" style="background:var(--bg);border-radius:9px;padding:10px 13px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--text3)">التكلفة</span><span style="font-weight:800;color:var(--text)" id="r-cost-val">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:4px"><span style="color:var(--text3)">الرصيد بعد الاستلام</span><span style="font-weight:800;color:var(--green)" id="r-after-val">—</span></div>
+        </div>
+        <div class="form-group"><label class="form-label">المورد</label><select id="r-supplier" class="form-input"></select></div>
+        <div class="form-group"><label class="form-label">ملاحظة</label><input id="r-note" class="form-input" placeholder="رقم الفاتورة، المشغل..."></div>
+        <button class="btn btn-success" style="width:100%;padding:12px;font-size:14px" onclick="doReceive()">⬆️ تأكيد الاستلام</button>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-head"><div class="card-title">📋 آخر الاستلامات</div></div>
+          <div id="r-recent"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">⛽ حالة الخزانات</div></div>
+          <div id="r-tanks"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth(); loadTheme(); buildSidebar('receive');
+let rFuel='petrol';
+
+function setRFuel(f){
+  rFuel=f;
+  const rp=document.getElementById('rp'), rd=document.getElementById('rd');
+  if(f==='petrol'){rp.style.border='2px solid #f59e0b';rp.style.background='#fffbeb';rp.style.color='#92400e';rd.style.border='1px solid var(--border)';rd.style.background='var(--bg)';rd.style.color='var(--text2)';}
+  else{rd.style.border='2px solid #374151';rd.style.background='#f9fafb';rd.style.color='#111';rp.style.border='1px solid var(--border)';rp.style.background='var(--bg)';rp.style.color='var(--text2)';}
+  rFillTanks();
+}
+
+function rFillTanks(){
+  const db=getDB();
+  const sel=document.getElementById('r-tank');
+  const tanks=db.tanks.filter(t=>t.fuel===rFuel);
+  sel.innerHTML=tanks.map(t=>`<option value="${t.id}">${t.name} (${fmt(t.current)} لتر)</option>`).join('');
+  rUpdateBalance();
+}
+
+function rUpdateBalance(){
+  const db=getDB();
+  const id=parseInt(document.getElementById('r-tank').value);
+  const t=db.tanks.find(x=>x.id===id);
+  if(t) document.getElementById('r-balance').textContent=`المتاح: ${fmt(t.current)} لتر | الطاقة: ${fmt(t.capacity)} لتر`;
+  rCalcCost();
+}
+
+function rCalcCost(){
+  const db=getDB();
+  const id=parseInt(document.getElementById('r-tank').value);
+  const t=db.tanks.find(x=>x.id===id);
+  const qty=parseFloat(document.getElementById('r-liters').value)||0;
+  if(t&&qty>0){
+    document.getElementById('r-cost-val').textContent=fmt(qty*t.price)+' ريال';
+    document.getElementById('r-after-val').textContent=fmt(Math.min(t.capacity,t.current+qty))+' لتر';
+  }
+}
+
+function fillSuppliers(){
+  const db=getDB();
+  const sel=document.getElementById('r-supplier');
+  sel.innerHTML='<option value="">بدون مورد</option>'+db.suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+function doReceive(){
+  const db=getDB();
+  const tankId=parseInt(document.getElementById('r-tank').value);
+  const liters=parseFloat(document.getElementById('r-liters').value)||0;
+  const note=document.getElementById('r-note').value.trim();
+  const tank=db.tanks.find(t=>t.id===tankId);
+  if(liters<1){toast('الكمية مطلوبة','error');return;}
+  if(!tank){toast('الخزان غير موجود','error');return;}
+  const cost=liters*tank.price;
+  tank.current=Math.min(tank.capacity,tank.current+liters);
+  const session=getSession();
+  db.movements.unshift({id:nextId(db,'movement'),type:'receive',fuel:rFuel,liters,tankId,plate:null,driver:null,cost,note,userId:session.id,date:nowStr()});
+  saveDB(db);
+  logActivity('استلام وقود',`${fmt(liters)} لتر ${fuelLabel(rFuel)} → ${tank.name}`);
+  toast(`✅ تم استلام ${fmt(liters)} لتر`,'success');
+  document.getElementById('r-liters').value=1000; document.getElementById('r-note').value='';
+  rFillTanks(); rRender();
+}
+
+function rRender(){
+  const db=getDB();
+  const items=db.movements.filter(m=>m.type==='receive').slice(0,5);
+  const el=document.getElementById('r-recent');
+  el.innerHTML=items.length?items.map(m=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)">${fuelBadge(m.fuel)}<div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:var(--text)">${m.note||'استلام وقود'}</div><div style="font-size:10.5px;color:var(--text3)">${m.date}</div></div><div style="font-size:13px;font-weight:800;color:var(--green)">+${fmt(m.liters)} لتر</div></div>`).join(''):'<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px">لا توجد استلامات</div>';
+  const el2=document.getElementById('r-tanks');
+  el2.innerHTML=db.tanks.map(t=>{const pct=tankPct(t);const col=tankColor(pct);return`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12.5px;font-weight:700;color:var(--text)">${t.fuel==='petrol'?'⛽':'🚛'} ${t.name}</span><span style="font-size:12px;font-weight:700;color:${col}">${fmt(t.current)} لتر</span></div><div class="prog"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}).join('');
+}
+
+rFillTanks(); fillSuppliers(); rRender();
+document.getElementById('r-liters').addEventListener('input',rCalcCost);
+</script>
+</body></html>

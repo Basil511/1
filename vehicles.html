@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>المركبات</title><link rel="stylesheet" href="css/main.css"></head>
+<body><div class="main">
+<div class="topbar"><div><div class="page-title">🚗 إدارة المركبات</div><div class="page-sub">سجل المركبات ونوع الوقود</div></div><div class="topbar-actions"><button class="btn btn-accent btn-sm" onclick="openModal('m-add')">+ إضافة مركبة</button></div></div>
+<div class="content">
+<div style="display:flex;gap:8px;margin-bottom:12px">
+<div class="search-wrap" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input class="search-input" id="q" placeholder="ابحث باللوحة أو السائق..." oninput="render()"></div>
+<div class="filter-row"><button class="flt active" data-f="all" onclick="sf(this)">الكل</button><button class="flt" data-f="petrol" onclick="sf(this)">⛽ بنزين</button><button class="flt" data-f="diesel" onclick="sf(this)">🚛 ديزل</button></div>
+</div>
+<div class="card"><div class="tbl-wrap"><table><thead><tr><th>اللوحة</th><th>الوقود</th><th>النوع</th><th>الماركة</th><th>السائق</th><th>إجمالي الصرف</th><th>التكلفة الكلية</th><th>إجراءات</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+</div></div>
+<div class="modal-ov" id="m-add"><div class="modal"><div class="modal-head"><div class="modal-title">🚗 إضافة مركبة</div><button class="mclose" onclick="closeModal('m-add')">✕</button></div>
+<div class="form-row2"><div class="form-group"><label class="form-label">رقم اللوحة *</label><input id="v-plate" class="form-input" placeholder="1234-ABC" dir="ltr"></div><div class="form-group"><label class="form-label">نوع الوقود</label><select id="v-fuel" class="form-input"><option value="petrol">⛽ بنزين 91</option><option value="diesel">🚛 ديزل</option></select></div></div>
+<div class="form-row2"><div class="form-group"><label class="form-label">نوع المركبة</label><select id="v-type" class="form-input"><option>نقل</option><option>شاحنة</option><option>حافلة</option><option>خصوصي</option><option>نقل خاص</option></select></div><div class="form-group"><label class="form-label">الماركة</label><input id="v-brand" class="form-input" placeholder="Toyota Hilux"></div></div>
+<div class="form-group"><label class="form-label">السائق</label><input id="v-driver" class="form-input" placeholder="اسم السائق"></div>
+<div class="mfoot"><button class="btn btn-accent" onclick="addV()">إضافة</button><button class="btn btn-ghost" onclick="closeModal('m-add')">إلغاء</button></div>
+</div></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();loadTheme();buildSidebar('vehicles');
+let af='all';
+function sf(btn){document.querySelectorAll('.flt').forEach(b=>b.classList.remove('active'));btn.classList.add('active');af=btn.dataset.f;render();}
+function render(){
+  const db=getDB(),q=document.getElementById('q').value.toLowerCase();
+  let vs=db.vehicles;
+  if(af!=='all') vs=vs.filter(v=>v.fuel===af);
+  if(q) vs=vs.filter(v=>(v.plate||'').toLowerCase().includes(q)||(v.driver||'').toLowerCase().includes(q));
+  document.getElementById('tbody').innerHTML=vs.map(v=>{
+    const movs=db.movements.filter(m=>m.plate===v.plate&&m.type==='dispense');
+    const totalL=movs.reduce((a,m)=>a+m.liters,0);
+    const totalC=movs.reduce((a,m)=>a+m.cost,0);
+    return`<tr><td><span class="plate-tag">${v.plate}</span></td><td>${fuelBadge(v.fuel)}</td><td><span class="badge b-gray">${v.type||'—'}</span></td><td style="font-size:12px">${v.brand||'—'}</td><td style="font-size:12px">${v.driver||'—'}</td><td style="font-weight:700;color:var(--text)">${fmt(totalL)} لتر</td><td style="font-weight:700">${fmt(totalC)} ر</td><td><button class="btn btn-danger btn-xs" onclick="delV(${v.id})">🗑️</button></td></tr>`;
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">لا توجد مركبات</td></tr>';
+}
+function addV(){
+  const db=getDB();const plate=document.getElementById('v-plate').value.trim();if(!plate){toast('رقم اللوحة مطلوب','error');return;}
+  if(db.vehicles.find(v=>v.plate===plate)){toast('اللوحة مسجلة مسبقاً','error');return;}
+  db.vehicles.push({id:nextId(db,'vehicle'),plate,fuel:document.getElementById('v-fuel').value,type:document.getElementById('v-type').value,brand:document.getElementById('v-brand').value.trim(),driver:document.getElementById('v-driver').value.trim()});
+  saveDB(db);closeModal('m-add');logActivity('إضافة مركبة',plate);render();toast('✅ تمت الإضافة','success');
+}
+function delV(id){const db=getDB();const v=db.vehicles.find(x=>x.id===id);if(!v||!confirm(`حذف "${v.plate}"؟`))return;db.vehicles=db.vehicles.filter(x=>x.id!==id);saveDB(db);render();toast('🗑️ تم الحذف');}
+render();
+</script></body></html>

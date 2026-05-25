@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>الحركات</title><link rel="stylesheet" href="css/main.css"></head>
+<body><div class="main">
+<div class="topbar"><div><div class="page-title">🔄 سجل الحركات</div><div class="page-sub">جميع عمليات الصرف والاستلام</div></div><div class="topbar-actions"><button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇️ تصدير CSV</button></div></div>
+<div class="content">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+<div class="search-wrap" style="flex:1;min-width:200px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input class="search-input" id="q" placeholder="ابحث باللوحة أو السائق..." oninput="render()"></div>
+<div class="filter-row">
+<button class="flt active" data-f="all" onclick="sf(this)">الكل</button>
+<button class="flt" data-f="dispense" onclick="sf(this)">⬇️ صرف</button>
+<button class="flt" data-f="receive" onclick="sf(this)">⬆️ استلام</button>
+<button class="flt" data-f="petrol" onclick="sf(this)">⛽ بنزين</button>
+<button class="flt" data-f="diesel" onclick="sf(this)">🚛 ديزل</button>
+</div>
+<input type="date" id="df" class="form-input" style="width:150px" onchange="render()">
+</div>
+<div class="card">
+<div class="card-head"><div class="card-title">قائمة الحركات</div><div id="mov-cnt" style="font-size:11px;color:var(--text3)"></div></div>
+<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>الوقود</th><th>الكمية</th><th>اللوحة</th><th>السائق</th><th>التكلفة</th><th>ملاحظة</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</div></div></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();loadTheme();buildSidebar('movements');
+let af='all';
+function sf(btn){document.querySelectorAll('.flt').forEach(b=>b.classList.remove('active'));btn.classList.add('active');af=btn.dataset.f;render();}
+function render(){
+  const db=getDB(),q=document.getElementById('q').value.toLowerCase(),df=document.getElementById('df').value;
+  let items=db.movements.filter(m=>{
+    if(af==='dispense'&&m.type!=='dispense')return false;
+    if(af==='receive'&&m.type!=='receive')return false;
+    if(af==='petrol'&&m.fuel!=='petrol')return false;
+    if(af==='diesel'&&m.fuel!=='diesel')return false;
+    if(q&&!(m.plate||'').toLowerCase().includes(q)&&!(m.driver||'').toLowerCase().includes(q)&&!(m.note||'').toLowerCase().includes(q))return false;
+    if(df&&!m.date.includes(df))return false;
+    return true;
+  });
+  document.getElementById('mov-cnt').textContent=items.length+' حركة';
+  document.getElementById('tbody').innerHTML=items.map(m=>{const isD=m.type==='dispense';return`<tr><td style="font-size:11.5px;white-space:nowrap;color:var(--text3)">${m.date}</td><td><span class="badge ${isD?'b-orange':'b-green'}">${isD?'⬇️ صرف':'⬆️ استلام'}</span></td><td>${fuelBadge(m.fuel)}</td><td class="${isD?'amount-neg':'amount-pos'}">${isD?'−':'+'}${fmt(m.liters)} لتر</td><td>${m.plate?`<span class="plate-tag">${m.plate}</span>`:'—'}</td><td style="font-size:12px">${m.driver||'—'}</td><td style="font-weight:700;color:var(--text)">${fmt(m.cost)} ر</td><td style="font-size:11.5px;color:var(--text3)">${m.note||'—'}</td></tr>`;}).join('')||'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">لا توجد حركات</td></tr>';
+}
+function exportCSV(){
+  const db=getDB();
+  const csv='\uFEFFالتاريخ,النوع,الوقود,الكمية,اللوحة,السائق,التكلفة,ملاحظة\n'+db.movements.map(m=>`${m.date},${m.type==='dispense'?'صرف':'استلام'},${fuelLabel(m.fuel)},${m.liters},${m.plate||''},${m.driver||''},${m.cost},${m.note||''}`).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='الحركات.csv';a.click();
+  toast('✅ تم التصدير','success');
+}
+render();
+</script></body></html>
