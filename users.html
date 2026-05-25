@@ -1,36 +1,106 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>المستخدمون</title><link rel="stylesheet" href="css/main.css"></head>
-<body><div class="main">
-<div class="topbar"><div><div class="page-title">👥 المستخدمون</div><div class="page-sub">إدارة حسابات النظام</div></div><div class="topbar-actions"><button class="btn btn-accent btn-sm" onclick="openAdd()">+ إضافة</button></div></div>
-<div class="content">
-<div class="g g3" style="margin-bottom:14px" id="kpis"></div>
-<div class="card"><div class="tbl-wrap"><table><thead><tr><th>المستخدم</th><th>اسم الدخول</th><th>الدور</th><th>الحالة</th><th>آخر دخول</th><th>إجراءات</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
-</div></div>
-<div class="modal-ov" id="m-user"><div class="modal"><div class="modal-head"><div class="modal-title" id="u-title">إضافة مستخدم</div><button class="mclose" onclick="closeModal('m-user')">✕</button></div>
-<input type="hidden" id="u-id">
-<div class="form-row2"><div class="form-group"><label class="form-label">الاسم *</label><input id="u-name" class="form-input"></div><div class="form-group"><label class="form-label">اسم الدخول *</label><input id="u-uname" class="form-input" dir="ltr"></div></div>
-<div class="form-row2"><div class="form-group"><label class="form-label">كلمة المرور</label><input id="u-pass" class="form-input" type="password" placeholder="فارغة = لا تغيير"></div><div class="form-group"><label class="form-label">الدور</label><select id="u-role" class="form-input"><option value="admin">🔑 مدير</option><option value="editor">✏️ محرر</option><option value="viewer">👁️ قارئ</option></select></div></div>
-<div class="form-group"><label class="form-label">الحالة</label><select id="u-active" class="form-input"><option value="1">✅ نشط</option><option value="0">⏸️ موقوف</option></select></div>
-<div class="mfoot"><button class="btn btn-accent" onclick="saveUser()">حفظ</button><button class="btn btn-ghost" onclick="closeModal('m-user')">إلغاء</button></div>
-</div></div>
-<script src="js/shared.js"></script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>المستخدمون — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>👥 المستخدمون</h1><p>إدارة حسابات الدخول</p></div>
+    <button class="btn btn-success" onclick="openModal()">➕ إضافة مستخدم</button>
+  </div>
+  <div class="page-body">
+    <div class="glass glass-sm" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th><th>آخر دخول</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+        <tbody id="users-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="user-modal" class="modal-overlay">
+  <div class="glass glass-sm modal-card">
+    <div class="modal-title" id="modal-title">➕ إضافة مستخدم</div>
+    <div class="form-grid mb-16">
+      <div class="field" style="grid-column:span 2"><label>الاسم الكامل</label><input class="g-input" id="u-name" placeholder="مثال: محمد العمري"/></div>
+      <div class="field"><label>اسم المستخدم</label><input class="g-input" id="u-user" placeholder="للدخول"/></div>
+      <div class="field"><label>كلمة المرور</label><input class="g-input" id="u-pass" type="password" placeholder="كلمة المرور"/></div>
+      <div class="field" style="grid-column:span 2"><label>الصلاحية</label>
+        <select class="g-input g-select" id="u-role">
+          <option value="admin">مدير — صلاحيات كاملة</option>
+          <option value="manager">مشرف — إضافة وصرف</option>
+          <option value="viewer">مستعرض — عرض فقط</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="saveUser()">حفظ ✓</button>
+      <button class="btn btn-primary" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
 <script>
-const s=requireAuth();if(s?.role!=='admin')window.location.href='dashboard.html';
-loadTheme();buildSidebar('users');
-const COLORS=['#f59e0b','#3b82f6','#22c55e','#8b5cf6','#ef4444'];
-const RL={admin:'🔑 مدير',editor:'✏️ محرر',viewer:'👁️ قارئ'};
-const RB={admin:'b-orange',editor:'b-blue',viewer:'b-gray'};
-function inits(n){return(n||'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
-function render(){
-  const db=getDB();
-  document.getElementById('kpis').innerHTML=[{l:'الكل',v:db.users.length,i:'👥',c:'#f59e0b'},{l:'نشطون',v:db.users.filter(u=>u.active!==false).length,i:'✅',c:'var(--green)'},{l:'موقوفون',v:db.users.filter(u=>u.active===false).length,i:'⏸️',c:'var(--red)'}].map(k=>`<div class="kpi" style="--k-color:${k.c}"><div class="kpi-accent"></div><div class="kpi-icon">${k.i}</div><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div></div>`).join('');
-  document.getElementById('tbody').innerHTML=db.users.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:8px;background:${COLORS[u.id%COLORS.length]};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">${inits(u.name)}</div><span class="td-main">${u.name}</span></div></td><td style="direction:ltr;font-size:12px;color:var(--text3)">${u.username}</td><td><span class="badge ${RB[u.role]||'b-gray'}">${RL[u.role]||u.role}</span></td><td><span class="badge ${u.active!==false?'b-green':'b-gray'}">${u.active!==false?'نشط':'موقوف'}</span></td><td style="font-size:11.5px;color:var(--text3)">${u.lastLogin||'—'}</td><td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick="editUser(${u.id})">✏️</button><button class="btn btn-xs ${u.active!==false?'b-gray':'btn-success'}" onclick="toggleU(${u.id})" style="padding:4px 9px;border-radius:6px;border:1px solid var(--border);cursor:pointer;font-family:Tajawal,sans-serif;font-size:11px;font-weight:600">${u.active!==false?'إيقاف':'تفعيل'}</button>${u.id!==1?`<button class="btn btn-danger btn-xs" onclick="delU(${u.id})">🗑️</button>`:''}</div></td></tr>`).join('');
+document.getElementById('nav-root').innerHTML = renderSidebar('users');
+var session = DB.requireAuth('admin');
+var editId = null;
+
+function openModal(u) {
+  editId = u ? u.id : null;
+  document.getElementById('modal-title').textContent = u ? '✏️ تعديل المستخدم' : '➕ إضافة مستخدم';
+  document.getElementById('u-name').value = u ? u.name     : '';
+  document.getElementById('u-user').value = u ? u.username : '';
+  document.getElementById('u-pass').value = '';
+  document.getElementById('u-role').value = u ? u.role : 'manager';
+  document.getElementById('user-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('u-name').focus();},200);
 }
-function openAdd(){document.getElementById('u-title').textContent='إضافة مستخدم';document.getElementById('u-id').value='';['u-name','u-uname','u-pass'].forEach(id=>document.getElementById(id).value='');document.getElementById('u-role').value='editor';document.getElementById('u-active').value='1';openModal('m-user');}
-function editUser(id){const db=getDB();const u=db.users.find(x=>x.id===id);if(!u)return;document.getElementById('u-title').textContent='تعديل: '+u.name;document.getElementById('u-id').value=id;document.getElementById('u-name').value=u.name;document.getElementById('u-uname').value=u.username;document.getElementById('u-pass').value='';document.getElementById('u-role').value=u.role;document.getElementById('u-active').value=u.active!==false?'1':'0';openModal('m-user');}
-function saveUser(){const db=getDB();const name=document.getElementById('u-name').value.trim();const uname=document.getElementById('u-uname').value.trim();const pass=document.getElementById('u-pass').value;const role=document.getElementById('u-role').value;const active=document.getElementById('u-active').value==='1';const eid=parseInt(document.getElementById('u-id').value);if(!name||!uname){toast('الاسم واسم الدخول مطلوبان','error');return;}if(db.users.find(u=>u.username===uname&&u.id!==eid)){toast('اسم الدخول مستخدم','error');return;}if(eid){const u=db.users.find(x=>x.id===eid);if(u){u.name=name;u.username=uname;u.role=role;u.active=active;if(pass)u.password=pass;}}else{if(!pass){toast('كلمة المرور مطلوبة','error');return;}db.users.push({id:nextId(db,'user'),name,username:uname,password:pass,role,active:true,lastLogin:null});}saveDB(db);closeModal('m-user');logActivity(eid?'تعديل مستخدم':'إضافة مستخدم',name);render();toast('✅ تم الحفظ','success');}
-function toggleU(id){if(id===1){toast('لا يمكن إيقاف المدير الرئيسي','error');return;}const db=getDB();const u=db.users.find(x=>x.id===id);if(!u)return;u.active=u.active===false;saveDB(db);logActivity(u.active?'تفعيل مستخدم':'إيقاف مستخدم',u.name);render();toast(u.active?'✅ تم التفعيل':'⏸️ تم الإيقاف');}
-function delU(id){if(id===1){toast('لا يمكن حذف المدير','error');return;}const db=getDB();const u=db.users.find(x=>x.id===id);if(!u||!confirm(`حذف "${u.name}"؟`))return;db.users=db.users.filter(x=>x.id!==id);saveDB(db);render();toast('🗑️ تم الحذف');}
+function closeModal(){document.getElementById('user-modal').classList.remove('on');}
+
+function saveUser() {
+  var data = {name:document.getElementById('u-name').value.trim(),username:document.getElementById('u-user').value.trim(),role:document.getElementById('u-role').value,active:true};
+  var pass = document.getElementById('u-pass').value;
+  if (!data.name||!data.username){tst('أدخل الاسم واسم المستخدم','r');return;}
+  if (editId) {
+    if (pass) data.password = pass;
+    DB.updateUser(editId,data); tst('تم التعديل ✓','g');
+  } else {
+    if (!pass){tst('أدخل كلمة المرور','r');return;}
+    data.password = pass; DB.addUser(data); tst('تمت الإضافة ✓','g');
+  }
+  closeModal(); render();
+}
+
+function toggleActive(id, cur) {
+  DB.updateUser(id,{active:!cur}); render();
+  tst(cur?'تم تعطيل الحساب':'تم تفعيل الحساب', cur?'r':'g');
+}
+
+function render() {
+  var users = DB.getUsers();
+  document.getElementById('users-body').innerHTML = users.map(function(u){
+    var roleBadge = u.role==='admin'?'<span class="badge badge-admin">مدير</span>':u.role==='manager'?'<span class="badge badge-manager">مشرف</span>':'<span class="badge badge-viewer">مستعرض</span>';
+    var activeBadge = u.active!==false?'<span class="badge badge-in">فعّال</span>':'<span class="badge badge-out">معطّل</span>';
+    var lastLogin = u.lastLogin ? fmtDate(u.lastLogin) : 'لم يدخل بعد';
+    return '<tr>'+
+      '<td><strong>'+u.name+'</strong></td>'+
+      '<td class="td-bc">'+u.username+'</td>'+
+      '<td>'+roleBadge+'</td>'+
+      '<td style="font-size:11px;color:var(--tx3)">'+lastLogin+'</td>'+
+      '<td>'+activeBadge+'</td>'+
+      '<td><div class="flex gap-8">'+
+        (u.id!==session.id?'<button class="btn btn-primary btn-sm" onclick=\'openModal('+JSON.stringify(u)+')\'>تعديل</button>':'<span style="font-size:11px;color:var(--tx3)">حسابك</span>')+
+        (u.id!==session.id?'<button class="btn '+(u.active!==false?'btn-warn':'btn-success')+' btn-sm" onclick="toggleActive('+u.id+','+(u.active!==false)+')">'+(u.active!==false?'تعطيل':'تفعيل')+'</button>':'')+
+      '</div></td></tr>';
+  }).join('');
+}
 render();
-</script></body></html>
+</script>
+</body>
+</html>

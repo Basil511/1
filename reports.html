@@ -1,72 +1,162 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>التقارير</title><link rel="stylesheet" href="css/main.css"></head>
-<body><div class="main">
-<div class="topbar"><div><div class="page-title">📊 التقارير</div><div class="page-sub">تقارير الوقود التفصيلية</div></div><div class="topbar-actions"><button class="btn btn-success btn-sm" onclick="exportCSV()">⬇️ تصدير Excel</button><button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ طباعة</button></div></div>
-<div class="content">
-<div class="card" style="margin-bottom:14px">
-<div class="filter-row"><span style="font-size:12px;font-weight:700;color:var(--text2)">التقرير:</span>
-<button class="flt active" data-r="summary" onclick="setR(this)">ملخص عام</button>
-<button class="flt" data-r="vehicles" onclick="setR(this)">🚗 مركبات</button>
-<button class="flt" data-r="daily" onclick="setR(this)">📅 يومي</button>
-<button class="flt" data-r="tanks" onclick="setR(this)">⛽ خزانات</button>
-</div></div>
-<div class="g g4" style="margin-bottom:14px" id="r-kpis"></div>
-<div class="card" id="r-content"></div>
-</div></div>
-<script src="js/shared.js"></script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>التقارير — مستودع قطع الغيار</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><h1>📈 التقارير</h1><p>تحليل المخزون والحركات</p></div>
+    <div class="flex gap-8">
+      <button class="btn btn-success btn-sm" onclick="exportExcel()">تصدير Excel</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <!-- Date filters -->
+    <div class="glass glass-sm" style="padding:16px;margin-bottom:16px">
+      <div class="flex gap-12 mb-8" style="flex-wrap:wrap;align-items:center">
+        <div class="field" style="flex:0;min-width:150px"><label>من تاريخ</label><input class="g-input" type="date" id="date-from" style="padding:9px 12px"/></div>
+        <div class="field" style="flex:0;min-width:150px"><label>إلى تاريخ</label><input class="g-input" type="date" id="date-to" style="padding:9px 12px"/></div>
+        <div class="field" style="flex:0;min-width:130px"><label>نوع الحركة</label>
+          <select class="g-input g-select" id="type-filter" style="padding:9px 12px">
+            <option value="all">الكل</option><option value="in">إضافة فقط</option><option value="out">صرف فقط</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="applyFilter()" style="align-self:flex-end;margin-bottom:1px">تطبيق</button>
+        <button class="btn btn-primary btn-sm" onclick="resetFilter()" style="align-self:flex-end;margin-bottom:1px">إعادة تعيين</button>
+      </div>
+    </div>
+    <!-- KPIs -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)" id="rep-kpis"></div>
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">📊 حركة المخزون يومياً</div>
+        <div class="bar-chart" id="rep-chart" style="height:160px"></div>
+      </div>
+      <div class="glass glass-sm" style="padding:20px">
+        <div class="fw-bold mb-12" style="font-size:14px">🔝 أكثر الأصناف حركة</div>
+        <div id="rep-top"></div>
+      </div>
+    </div>
+    <!-- Table -->
+    <div class="glass glass-sm" style="padding:20px">
+      <div class="flex-between mb-12">
+        <div class="fw-bold" style="font-size:14px">تفاصيل الحركات</div>
+        <div style="font-size:12px;color:var(--tx3)" id="rep-count"></div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>المنتج</th><th>الباركود</th><th>الكمية</th><th>النوع</th><th>السعر</th><th>القيمة</th><th>الموقع</th><th>التاريخ</th><th>المستخدم</th></tr></thead>
+        <tbody id="rep-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-requireAuth();loadTheme();buildSidebar('reports');
-let ar='summary';
-function setR(btn){document.querySelectorAll('.flt').forEach(b=>b.classList.remove('active'));btn.classList.add('active');ar=btn.dataset.r;render();}
-function render(){
-  const db=getDB();
-  const disp=db.movements.filter(m=>m.type==='dispense');
-  const recv=db.movements.filter(m=>m.type==='receive');
-  const pDisp=disp.filter(m=>m.fuel==='petrol');
-  const dDisp=disp.filter(m=>m.fuel==='diesel');
+document.getElementById('nav-root').innerHTML = renderSidebar('reports');
+DB.requireAuth();
 
-  document.getElementById('r-kpis').innerHTML=[
-    {l:'إجمالي الصرف',v:fmt(disp.reduce((a,m)=>a+m.liters,0))+' لتر',i:'🔄',c:'#f59e0b'},
-    {l:'تكلفة الصرف',v:fmt(disp.reduce((a,m)=>a+m.cost,0))+' ر',i:'💰',c:'#374151'},
-    {l:'عمليات الصرف',v:disp.length,i:'📋',c:'#3b82f6'},
-    {l:'الاستلامات',v:recv.length,i:'⬆️',c:'var(--green)'},
-  ].map(k=>`<div class="kpi" style="--k-color:${k.c}"><div class="kpi-accent"></div><div class="kpi-icon">${k.i}</div><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div></div>`).join('');
+var filtered = [];
 
-  const rc=document.getElementById('r-content');
-  if(ar==='summary'){
-    rc.innerHTML=`<div class="card-head"><div class="card-title">ملخص عام</div></div>
-    <div class="g g2" style="gap:14px">
-    <div><div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent)">⛽ بنزين 91</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">إجمالي الصرف</span><strong>${fmt(pDisp.reduce((a,m)=>a+m.liters,0))} لتر</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">التكلفة</span><strong>${fmt(pDisp.reduce((a,m)=>a+m.cost,0))} ريال</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">عدد العمليات</span><strong>${pDisp.length}</strong></div>
-    </div></div>
-    <div><div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text2)">🚛 ديزل</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">إجمالي الصرف</span><strong>${fmt(dDisp.reduce((a,m)=>a+m.liters,0))} لتر</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">التكلفة</span><strong>${fmt(dDisp.reduce((a,m)=>a+m.cost,0))} ريال</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;font-size:13px"><span style="color:var(--text2)">عدد العمليات</span><strong>${dDisp.length}</strong></div>
-    </div></div></div>`;
-  } else if(ar==='vehicles'){
-    const byVehicle={};
-    disp.forEach(m=>{if(!m.plate)return;if(!byVehicle[m.plate])byVehicle[m.plate]={liters:0,cost:0,count:0,fuel:m.fuel};byVehicle[m.plate].liters+=m.liters;byVehicle[m.plate].cost+=m.cost;byVehicle[m.plate].count++;});
-    const sorted=Object.entries(byVehicle).sort((a,b)=>b[1].cost-a[1].cost);
-    rc.innerHTML='<div class="card-head"><div class="card-title">الصرف حسب المركبة</div></div><div class="tbl-wrap"><table><thead><tr><th>اللوحة</th><th>الوقود</th><th>الاستهلاك</th><th>التكلفة</th><th>عدد العمليات</th></tr></thead><tbody>'+sorted.map(([p,d])=>`<tr><td><span class="plate-tag">${p}</span></td><td>${fuelBadge(d.fuel)}</td><td style="font-weight:700">${fmt(d.liters)} لتر</td><td style="font-weight:700">${fmt(d.cost)} ر</td><td>${d.count}</td></tr>`).join('')+'</tbody></table></div>';
-  } else if(ar==='tanks'){
-    rc.innerHTML='<div class="card-head"><div class="card-title">حالة الخزانات</div></div><div class="tbl-wrap"><table><thead><tr><th>الخزان</th><th>الوقود</th><th>المتاح</th><th>الطاقة</th><th>النسبة</th><th>قيمة المتاح</th></tr></thead><tbody>'+db.tanks.map(t=>{const pct=tankPct(t);const col=tankColor(pct);return`<tr><td class="td-main">${t.name}</td><td>${fuelBadge(t.fuel)}</td><td style="font-weight:800;color:${col}">${fmt(t.current)} لتر</td><td style="color:var(--text3)">${fmt(t.capacity)} لتر</td><td><div style="display:flex;align-items:center;gap:6px"><div class="prog" style="flex:1"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div>${pct}%</div></td><td style="font-weight:700">${fmt(t.current*t.price)} ر</td></tr>`;}).join('')+'</tbody></table></div>';
-  } else {
-    const byDay={};
-    disp.forEach(m=>{const d=m.date.split(' ')[0]||m.date;if(!byDay[d])byDay[d]={petrol:0,diesel:0,cost:0};byDay[d][m.fuel]+=m.liters;byDay[d].cost+=m.cost;});
-    rc.innerHTML='<div class="card-head"><div class="card-title">الصرف اليومي</div></div><div class="tbl-wrap"><table><thead><tr><th>اليوم</th><th>بنزين 91</th><th>ديزل</th><th>التكلفة</th></tr></thead><tbody>'+Object.entries(byDay).map(([d,v])=>`<tr><td style="color:var(--text3)">${d}</td><td style="font-weight:700;color:#b45309">${fmt(v.petrol)} لتر</td><td style="font-weight:700;color:#374151">${fmt(v.diesel)} لتر</td><td style="font-weight:700">${fmt(v.cost)} ر</td></tr>`).join('')+'</tbody></table></div>';
-  }
+function resetFilter() {
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value   = '';
+  document.getElementById('type-filter').value = 'all';
+  applyFilter();
 }
-function exportCSV(){
-  const db=getDB();
-  const csv='\uFEFFالتاريخ,النوع,الوقود,الكمية,اللوحة,السائق,التكلفة\n'+db.movements.map(m=>`${m.date},${m.type==='dispense'?'صرف':'استلام'},${fuelLabel(m.fuel)},${m.liters},${m.plate||''},${m.driver||''},${m.cost}`).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='تقرير_الوقود.csv';a.click();
-  toast('✅ تم التصدير','success');
+
+function applyFilter() {
+  var from = document.getElementById('date-from').value;
+  var to   = document.getElementById('date-to').value;
+  var type = document.getElementById('type-filter').value;
+  var entries = DB.getEntries();
+  filtered = entries.filter(function(e) {
+    if (type !== 'all' && e.type !== type) return false;
+    if (from && e.date && e.date < from) return false;
+    if (to   && e.date && e.date.substring(0,10) > to) return false;
+    return true;
+  });
+  render();
 }
-render();
-</script></body></html>
+
+function render() {
+  var inItems  = filtered.filter(function(e){return e.type==='in';});
+  var outItems = filtered.filter(function(e){return e.type==='out';});
+  var inQty    = inItems.reduce(function(s,e){return s+e.qty;},0);
+  var outQty   = outItems.reduce(function(s,e){return s+e.qty;},0);
+  var inVal    = inItems.reduce(function(s,e){return s+(e.qty*(parseFloat(e.price)||0));},0);
+  var outVal   = outItems.reduce(function(s,e){return s+(e.qty*(parseFloat(e.price)||0));},0);
+
+  document.getElementById('rep-kpis').innerHTML = [
+    {icon:'📥',val:fmtNum(inQty),lbl:'إجمالي الدخول',sub:'وحدة',cls:'kpi-gn'},
+    {icon:'📤',val:fmtNum(outQty),lbl:'إجمالي الخروج',sub:'وحدة',cls:'kpi-rd'},
+    {icon:'💰',val:fmtMoney(inVal),lbl:'قيمة الدخول',sub:'ر.س',cls:'kpi-bl'},
+    {icon:'💸',val:fmtMoney(outVal),lbl:'قيمة الخروج',sub:'ر.س',cls:'kpi-yw'},
+  ].map(function(k){return '<div class="glass glass-sm kpi-card '+k.cls+'"><span class="kpi-icon">'+k.icon+'</span><div class="kpi-val">'+k.val+'</div><div class="kpi-lbl">'+k.lbl+'</div></div>';}).join('');
+
+  // Chart — last 14 days
+  var days = {}, sortedDays = [];
+  filtered.forEach(function(e){
+    var d = (e.date||'').substring(0,10);
+    if (!d) return;
+    if (!days[d]) days[d] = {inQ:0,outQ:0};
+    if (e.type==='in') days[d].inQ += e.qty;
+    else days[d].outQ += e.qty;
+  });
+  sortedDays = Object.keys(days).sort().slice(-14);
+  var maxV = Math.max(1, ...sortedDays.map(function(d){return Math.max(days[d].inQ,days[d].outQ);}));
+  document.getElementById('rep-chart').innerHTML = sortedDays.length ? sortedDays.map(function(d){
+    var inH  = Math.max(4,Math.round(days[d].inQ /maxV*150));
+    var outH = Math.max(4,Math.round(days[d].outQ/maxV*150));
+    return '<div class="bar-group"><div class="bar-pair"><div class="bar in-bar" style="height:'+inH+'px"></div><div class="bar out-bar" style="height:'+outH+'px"></div></div><div class="bar-label">'+d.slice(5)+'</div></div>';
+  }).join('') : '<div style="text-align:center;color:var(--tx3);padding:20px">لا توجد بيانات</div>';
+
+  // Top parts
+  var pMap = {};
+  filtered.forEach(function(e){
+    if (!pMap[e.barcode]) pMap[e.barcode]={name:e.name,qty:0};
+    pMap[e.barcode].qty += e.qty;
+  });
+  var top = Object.values(pMap).sort(function(a,b){return b.qty-a.qty;}).slice(0,6);
+  document.getElementById('rep-top').innerHTML = top.length ? top.map(function(p,i){
+    return '<div class="flex-between" style="padding:7px 0;border-bottom:1px solid rgba(180,210,255,.07)"><div class="flex gap-8"><span style="font-size:11px;font-weight:700;color:var(--tx3);width:16px">'+(i+1)+'</span><span style="font-size:13px;font-weight:600">'+p.name+'</span></div><span class="tag">'+fmtNum(p.qty)+' وحدة</span></div>';
+  }).join('') : '<div class="empty-state" style="padding:16px"><p>لا توجد بيانات</p></div>';
+
+  // Table
+  document.getElementById('rep-count').textContent = fmtNum(filtered.length) + ' حركة';
+  document.getElementById('rep-body').innerHTML = filtered.slice(0,100).map(function(e){
+    var val = e.qty * (parseFloat(e.price)||0);
+    return '<tr><td><strong>'+e.name+'</strong></td><td class="td-bc">'+e.barcode+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:'+(e.type==='in'?'var(--gn)':'var(--rd)')+'">'+e.qty+'</td>'+
+      '<td><span class="badge '+(e.type==='in'?'badge-in':'badge-out')+'">'+(e.type==='in'?'إضافة':'صرف')+'</span></td>'+
+      '<td style="color:var(--tx2)">'+(e.price?fmtMoney(e.price):'—')+'</td>'+
+      '<td style="color:var(--bl);font-weight:700">'+(val?fmtMoney(val):'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.location||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--tx3)">'+e.date+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2)">'+(e.addedBy||'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--tx3)">لا توجد حركات</td></tr>';
+}
+
+function exportExcel() {
+  var rows = [['المنتج','الباركود','الكمية','النوع','السعر','القيمة','الموقع','التاريخ','المستخدم']];
+  filtered.forEach(function(e){
+    rows.push([e.name,e.barcode,e.qty,e.type==='in'?'إضافة':'صرف',e.price||'',e.qty*(parseFloat(e.price)||0),e.location||'',e.date,e.addedBy||'']);
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'التقرير');
+  var d=new Date();XLSX.writeFile(wb,'تقرير_'+d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()+'.xlsx');
+  tst('تم تصدير التقرير ✓','g');
+}
+
+applyFilter();
+</script>
+</body>
+</html>
